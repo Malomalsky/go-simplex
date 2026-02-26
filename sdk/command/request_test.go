@@ -91,3 +91,16 @@ func TestLookup(t *testing.T) {
 		t.Fatalf("unexpected definition for unknown command")
 	}
 }
+
+func TestExpectedResponseTypes(t *testing.T) {
+	t.Parallel()
+
+	got := ExpectedResponseTypes(ShowActiveUser{})
+	if len(got) != 2 || got[0] != "activeUser" || got[1] != "chatCmdError" {
+		t.Fatalf("unexpected expected response types for ShowActiveUser: %#v", got)
+	}
+
+	if got := ExpectedResponseTypes(Raw("/user")); got != nil {
+		t.Fatalf("raw request should not define expected response types: %#v", got)
+	}
+}

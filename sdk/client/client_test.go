@@ -148,6 +148,48 @@ func TestSendUsesTypedRequest(t *testing.T) {
 	}
 }
 
+func TestSendRejectsUnexpectedResponseType(t *testing.T) {
+	t.Parallel()
+
+	transport := newMockTransport()
+	c, err := New(transport)
+	if err != nil {
+		t.Fatalf("new client: %v", err)
+	}
+	t.Cleanup(func() {
+		_ = c.Close(context.Background())
+	})
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	type sendResult struct {
+		msg protocol.Message
+		err error
+	}
+	resultCh := make(chan sendResult, 1)
+	go func() {
+		msg, sendErr := c.Send(ctx, command.ShowActiveUser{})
+		resultCh <- sendResult{msg: msg, err: sendErr}
+	}()
+
+	rawReq := <-transport.writeCh
+	var req protocol.CommandRequest
+	if err := json.Unmarshal(rawReq, &req); err != nil {
+		t.Fatalf("decode sent request: %v", err)
+	}
+	transport.readCh <- []byte(fmt.Sprintf(`{"corrId":"%s","resp":{"type":"cmdOk"}}`, req.CorrID))
+
+	res := <-resultCh
+	var typedErr *UnexpectedResponseTypeError
+	if !errors.As(res.err, &typedErr) {
+		t.Fatalf("expected UnexpectedResponseTypeError, got: %v", res.err)
+	}
+	if typedErr.ResponseType != "cmdOk" {
+		t.Fatalf("unexpected response type: %q", typedErr.ResponseType)
+	}
+}
+
 func TestEventsAreDelivered(t *testing.T) {
 	t.Parallel()
 

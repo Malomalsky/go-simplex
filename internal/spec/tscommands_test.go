@@ -27,7 +27,17 @@ func TestParseTSCommands(t *testing.T) {
 	}
 	defer commandsTS.Close()
 
-	cmds, err := ParseTSCommands(commandsTS, catalog)
+	responsesTS, err := os.Open(filepath.Join("..", "..", "spec", "upstream", "responses.ts"))
+	if err != nil {
+		t.Fatalf("open responses.ts: %v", err)
+	}
+	defer responsesTS.Close()
+	responses, err := ParseTaggedInterfaces(responsesTS)
+	if err != nil {
+		t.Fatalf("parse tagged responses: %v", err)
+	}
+
+	cmds, err := ParseTSCommands(commandsTS, catalog, responses)
 	if err != nil {
 		t.Fatalf("parse ts commands: %v", err)
 	}
@@ -36,6 +46,9 @@ func TestParseTSCommands(t *testing.T) {
 	}
 	if cmds[0].Name != "APICreateMyAddress" {
 		t.Fatalf("unexpected first command: %s", cmds[0].Name)
+	}
+	if got := cmds[0].ResponseTags; len(got) != 2 || got[0] != "userContactLinkCreated" || got[1] != "chatCmdError" {
+		t.Fatalf("unexpected first command response tags: %#v", got)
 	}
 }
 
@@ -46,6 +59,10 @@ func TestRenderCommandRequestsGo(t *testing.T) {
 		{
 			Name:   "ShowActiveUser",
 			ExprJS: `'/user'`,
+			ResponseTags: []string{
+				"activeUser",
+				"chatCmdError",
+			},
 		},
 		{
 			Name: "APICreateMyAddress",
@@ -53,6 +70,10 @@ func TestRenderCommandRequestsGo(t *testing.T) {
 				{Name: "userId", TypeExpr: "number", Comment: "int64"},
 			},
 			ExprJS: `'/_address ' + self.userId`,
+			ResponseTags: []string{
+				"userContactLinkCreated",
+				"chatCmdError",
+			},
 		},
 		{
 			Name: "ReceiveFile",
@@ -61,6 +82,11 @@ func TestRenderCommandRequestsGo(t *testing.T) {
 				{Name: "storeEncrypted", Optional: true, TypeExpr: "boolean"},
 			},
 			ExprJS: `'/freceive ' + self.fileId + (typeof self.storeEncrypted == 'boolean' ? ' encrypt=' + (self.storeEncrypted ? 'on' : 'off') : '')`,
+			ResponseTags: []string{
+				"rcvFileAccepted",
+				"rcvFileAcceptedSndCancelled",
+				"chatCmdError",
+			},
 		},
 	}
 
@@ -83,5 +109,11 @@ func TestRenderCommandRequestsGo(t *testing.T) {
 	}
 	if !strings.Contains(code, `jsLooseEqual(jsTypeOf(c.StoreEncrypted), "boolean")`) {
 		t.Fatalf("missing typeof/equality rendering")
+	}
+	if !strings.Contains(code, `func (c APICreateMyAddress) ExpectedResponseTypes() []string`) {
+		t.Fatalf("missing expected response types method")
+	}
+	if !strings.Contains(code, `"userContactLinkCreated", "chatCmdError"`) {
+		t.Fatalf("missing expected response type values")
 	}
 }

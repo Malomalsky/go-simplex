@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"strings"
 	"sync"
 	"sync/atomic"
 
@@ -13,6 +14,24 @@ import (
 )
 
 var ErrClosed = errors.New("client closed")
+
+type UnexpectedResponseTypeError struct {
+	Command      string
+	ResponseType string
+	Expected     []string
+}
+
+func (e *UnexpectedResponseTypeError) Error() string {
+	if e == nil {
+		return "unexpected response type"
+	}
+	return fmt.Sprintf(
+		"unexpected response type for %s: got %q, expected one of [%s]",
+		e.Command,
+		e.ResponseType,
+		strings.Join(e.Expected, ", "),
+	)
+}
 
 type Transport interface {
 	Read(ctx context.Context) ([]byte, error)
@@ -151,7 +170,25 @@ func (c *Client) Send(ctx context.Context, req command.Request) (protocol.Messag
 	if req == nil {
 		return protocol.Message{}, fmt.Errorf("request is nil")
 	}
-	return c.SendRaw(ctx, req.CommandString())
+
+	msg, err := c.SendRaw(ctx, req.CommandString())
+	if err != nil {
+		return protocol.Message{}, err
+	}
+
+	expected := command.ExpectedResponseTypes(req)
+	if len(expected) == 0 {
+		return msg, nil
+	}
+	if containsString(expected, msg.Resp.Type) {
+		return msg, nil
+	}
+
+	return protocol.Message{}, &UnexpectedResponseTypeError{
+		Command:      fmt.Sprintf("%T", req),
+		ResponseType: msg.Resp.Type,
+		Expected:     append([]string(nil), expected...),
+	}
 }
 
 func (c *Client) Close(ctx context.Context) error {
@@ -268,4 +305,13 @@ func (c *Client) ensureOpen() error {
 	default:
 		return nil
 	}
+}
+
+func containsString(values []string, target string) bool {
+	for _, v := range values {
+		if v == target {
+			return true
+		}
+	}
+	return false
 }

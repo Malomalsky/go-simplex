@@ -10,6 +10,12 @@ func (c APICreateMyAddress) CommandString() string {
 	return "/_address " + jsToString(c.UserId)
 }
 
+var expectedResponsesAPICreateMyAddress = []string{"userContactLinkCreated", "chatCmdError"}
+
+func (c APICreateMyAddress) ExpectedResponseTypes() []string {
+	return expectedResponsesAPICreateMyAddress
+}
+
 type APIDeleteMyAddress struct {
 	UserId int64 `json:"userId"`
 }
@@ -18,12 +24,24 @@ func (c APIDeleteMyAddress) CommandString() string {
 	return "/_delete_address " + jsToString(c.UserId)
 }
 
+var expectedResponsesAPIDeleteMyAddress = []string{"userContactLinkDeleted", "chatCmdError"}
+
+func (c APIDeleteMyAddress) ExpectedResponseTypes() []string {
+	return expectedResponsesAPIDeleteMyAddress
+}
+
 type APIShowMyAddress struct {
 	UserId int64 `json:"userId"`
 }
 
 func (c APIShowMyAddress) CommandString() string {
 	return "/_show_address " + jsToString(c.UserId)
+}
+
+var expectedResponsesAPIShowMyAddress = []string{"userContactLink", "chatCmdError"}
+
+func (c APIShowMyAddress) ExpectedResponseTypes() []string {
+	return expectedResponsesAPIShowMyAddress
 }
 
 type APISetProfileAddress struct {
@@ -35,6 +53,12 @@ func (c APISetProfileAddress) CommandString() string {
 	return "/_profile_address " + jsToString(c.UserId) + " " + ternaryString(jsTruthy(c.Enable), "on", "off")
 }
 
+var expectedResponsesAPISetProfileAddress = []string{"userProfileUpdated", "chatCmdError"}
+
+func (c APISetProfileAddress) ExpectedResponseTypes() []string {
+	return expectedResponsesAPISetProfileAddress
+}
+
 type APISetAddressSettings struct {
 	UserId   int64          `json:"userId"`
 	Settings map[string]any `json:"settings"`
@@ -42,6 +66,12 @@ type APISetAddressSettings struct {
 
 func (c APISetAddressSettings) CommandString() string {
 	return "/_address_settings " + jsToString(c.UserId) + " " + mustJSON(c.Settings)
+}
+
+var expectedResponsesAPISetAddressSettings = []string{"userContactLinkUpdated", "chatCmdError"}
+
+func (c APISetAddressSettings) ExpectedResponseTypes() []string {
+	return expectedResponsesAPISetAddressSettings
 }
 
 type APISendMessages struct {
@@ -55,6 +85,12 @@ func (c APISendMessages) CommandString() string {
 	return "/_send " + jsToString(c.SendRef) + ternaryString(jsTruthy(c.LiveMessage), " live=on", "") + ternaryString(jsTruthy(c.Ttl), " ttl="+jsToString(c.Ttl), "") + " json " + mustJSON(c.ComposedMessages)
 }
 
+var expectedResponsesAPISendMessages = []string{"newChatItems", "chatCmdError"}
+
+func (c APISendMessages) ExpectedResponseTypes() []string {
+	return expectedResponsesAPISendMessages
+}
+
 type APIUpdateChatItem struct {
 	ChatRef        string         `json:"chatRef"`
 	ChatItemId     int64          `json:"chatItemId"`
@@ -64,6 +100,12 @@ type APIUpdateChatItem struct {
 
 func (c APIUpdateChatItem) CommandString() string {
 	return "/_update item " + jsToString(c.ChatRef) + " " + jsToString(c.ChatItemId) + ternaryString(jsTruthy(c.LiveMessage), " live=on", "") + " json " + mustJSON(c.UpdatedMessage)
+}
+
+var expectedResponsesAPIUpdateChatItem = []string{"chatItemUpdated", "chatItemNotChanged", "chatCmdError"}
+
+func (c APIUpdateChatItem) ExpectedResponseTypes() []string {
+	return expectedResponsesAPIUpdateChatItem
 }
 
 type APIDeleteChatItem struct {
@@ -76,6 +118,12 @@ func (c APIDeleteChatItem) CommandString() string {
 	return "/_delete item " + jsToString(c.ChatRef) + " " + jsJoin(c.ChatItemIds, ",") + " " + jsToString(c.DeleteMode)
 }
 
+var expectedResponsesAPIDeleteChatItem = []string{"chatItemsDeleted", "chatCmdError"}
+
+func (c APIDeleteChatItem) ExpectedResponseTypes() []string {
+	return expectedResponsesAPIDeleteChatItem
+}
+
 type APIDeleteMemberChatItem struct {
 	GroupId     int64   `json:"groupId"`
 	ChatItemIds []int64 `json:"chatItemIds"`
@@ -83,6 +131,12 @@ type APIDeleteMemberChatItem struct {
 
 func (c APIDeleteMemberChatItem) CommandString() string {
 	return "/_delete member item #" + jsToString(c.GroupId) + " " + jsJoin(c.ChatItemIds, ",")
+}
+
+var expectedResponsesAPIDeleteMemberChatItem = []string{"chatItemsDeleted", "chatCmdError"}
+
+func (c APIDeleteMemberChatItem) ExpectedResponseTypes() []string {
+	return expectedResponsesAPIDeleteMemberChatItem
 }
 
 type APIChatItemReaction struct {
@@ -94,6 +148,12 @@ type APIChatItemReaction struct {
 
 func (c APIChatItemReaction) CommandString() string {
 	return "/_reaction " + jsToString(c.ChatRef) + " " + jsToString(c.ChatItemId) + " " + ternaryString(jsTruthy(c.Add), "on", "off") + " " + mustJSON(c.Reaction)
+}
+
+var expectedResponsesAPIChatItemReaction = []string{"chatItemReaction", "chatCmdError"}
+
+func (c APIChatItemReaction) ExpectedResponseTypes() []string {
+	return expectedResponsesAPIChatItemReaction
 }
 
 type ReceiveFile struct {
@@ -108,12 +168,24 @@ func (c ReceiveFile) CommandString() string {
 	return "/freceive " + jsToString(c.FileId) + ternaryString(jsTruthy(c.UserApprovedRelays), " approved_relays=on", "") + ternaryString(jsLooseEqual(jsTypeOf(c.StoreEncrypted), "boolean"), " encrypt="+ternaryString(jsTruthy(c.StoreEncrypted), "on", "off"), "") + ternaryString(jsLooseEqual(jsTypeOf(c.FileInline), "boolean"), " inline="+ternaryString(jsTruthy(c.FileInline), "on", "off"), "") + ternaryString(jsTruthy(c.FilePath), " "+jsToString(c.FilePath), "")
 }
 
+var expectedResponsesReceiveFile = []string{"rcvFileAccepted", "rcvFileAcceptedSndCancelled", "chatCmdError"}
+
+func (c ReceiveFile) ExpectedResponseTypes() []string {
+	return expectedResponsesReceiveFile
+}
+
 type CancelFile struct {
 	FileId int64 `json:"fileId"`
 }
 
 func (c CancelFile) CommandString() string {
 	return "/fcancel " + jsToString(c.FileId)
+}
+
+var expectedResponsesCancelFile = []string{"sndFileCancelled", "rcvFileCancelled", "chatCmdError"}
+
+func (c CancelFile) ExpectedResponseTypes() []string {
+	return expectedResponsesCancelFile
 }
 
 type APIAddMember struct {
@@ -126,12 +198,24 @@ func (c APIAddMember) CommandString() string {
 	return "/_add #" + jsToString(c.GroupId) + " " + jsToString(c.ContactId) + " " + jsToString(c.MemberRole)
 }
 
+var expectedResponsesAPIAddMember = []string{"sentGroupInvitation", "chatCmdError"}
+
+func (c APIAddMember) ExpectedResponseTypes() []string {
+	return expectedResponsesAPIAddMember
+}
+
 type APIJoinGroup struct {
 	GroupId int64 `json:"groupId"`
 }
 
 func (c APIJoinGroup) CommandString() string {
 	return "/_join #" + jsToString(c.GroupId)
+}
+
+var expectedResponsesAPIJoinGroup = []string{"userAcceptedGroupSent", "chatCmdError"}
+
+func (c APIJoinGroup) ExpectedResponseTypes() []string {
+	return expectedResponsesAPIJoinGroup
 }
 
 type APIAcceptMember struct {
@@ -144,6 +228,12 @@ func (c APIAcceptMember) CommandString() string {
 	return "/_accept member #" + jsToString(c.GroupId) + " " + jsToString(c.GroupMemberId) + " " + jsToString(c.MemberRole)
 }
 
+var expectedResponsesAPIAcceptMember = []string{"memberAccepted", "chatCmdError"}
+
+func (c APIAcceptMember) ExpectedResponseTypes() []string {
+	return expectedResponsesAPIAcceptMember
+}
+
 type APIMembersRole struct {
 	GroupId        int64   `json:"groupId"`
 	GroupMemberIds []int64 `json:"groupMemberIds"`
@@ -152,6 +242,12 @@ type APIMembersRole struct {
 
 func (c APIMembersRole) CommandString() string {
 	return "/_member role #" + jsToString(c.GroupId) + " " + jsJoin(c.GroupMemberIds, ",") + " " + jsToString(c.MemberRole)
+}
+
+var expectedResponsesAPIMembersRole = []string{"membersRoleUser", "chatCmdError"}
+
+func (c APIMembersRole) ExpectedResponseTypes() []string {
+	return expectedResponsesAPIMembersRole
 }
 
 type APIBlockMembersForAll struct {
@@ -164,6 +260,12 @@ func (c APIBlockMembersForAll) CommandString() string {
 	return "/_block #" + jsToString(c.GroupId) + " " + jsJoin(c.GroupMemberIds, ",") + " blocked=" + ternaryString(jsTruthy(c.Blocked), "on", "off")
 }
 
+var expectedResponsesAPIBlockMembersForAll = []string{"membersBlockedForAllUser", "chatCmdError"}
+
+func (c APIBlockMembersForAll) ExpectedResponseTypes() []string {
+	return expectedResponsesAPIBlockMembersForAll
+}
+
 type APIRemoveMembers struct {
 	GroupId        int64   `json:"groupId"`
 	GroupMemberIds []int64 `json:"groupMemberIds"`
@@ -174,6 +276,12 @@ func (c APIRemoveMembers) CommandString() string {
 	return "/_remove #" + jsToString(c.GroupId) + " " + jsJoin(c.GroupMemberIds, ",") + ternaryString(jsTruthy(c.WithMessages), " messages=on", "")
 }
 
+var expectedResponsesAPIRemoveMembers = []string{"userDeletedMembers", "chatCmdError"}
+
+func (c APIRemoveMembers) ExpectedResponseTypes() []string {
+	return expectedResponsesAPIRemoveMembers
+}
+
 type APILeaveGroup struct {
 	GroupId int64 `json:"groupId"`
 }
@@ -182,12 +290,24 @@ func (c APILeaveGroup) CommandString() string {
 	return "/_leave #" + jsToString(c.GroupId)
 }
 
+var expectedResponsesAPILeaveGroup = []string{"leftMemberUser", "chatCmdError"}
+
+func (c APILeaveGroup) ExpectedResponseTypes() []string {
+	return expectedResponsesAPILeaveGroup
+}
+
 type APIListMembers struct {
 	GroupId int64 `json:"groupId"`
 }
 
 func (c APIListMembers) CommandString() string {
 	return "/_members #" + jsToString(c.GroupId)
+}
+
+var expectedResponsesAPIListMembers = []string{"groupMembers", "chatCmdError"}
+
+func (c APIListMembers) ExpectedResponseTypes() []string {
+	return expectedResponsesAPIListMembers
 }
 
 type APINewGroup struct {
@@ -200,6 +320,12 @@ func (c APINewGroup) CommandString() string {
 	return "/_group " + jsToString(c.UserId) + ternaryString(jsTruthy(c.Incognito), " incognito=on", "") + " " + mustJSON(c.GroupProfile)
 }
 
+var expectedResponsesAPINewGroup = []string{"groupCreated", "chatCmdError"}
+
+func (c APINewGroup) ExpectedResponseTypes() []string {
+	return expectedResponsesAPINewGroup
+}
+
 type APIUpdateGroupProfile struct {
 	GroupId      int64          `json:"groupId"`
 	GroupProfile map[string]any `json:"groupProfile"`
@@ -207,6 +333,12 @@ type APIUpdateGroupProfile struct {
 
 func (c APIUpdateGroupProfile) CommandString() string {
 	return "/_group_profile #" + jsToString(c.GroupId) + " " + mustJSON(c.GroupProfile)
+}
+
+var expectedResponsesAPIUpdateGroupProfile = []string{"groupUpdated", "chatCmdError"}
+
+func (c APIUpdateGroupProfile) ExpectedResponseTypes() []string {
+	return expectedResponsesAPIUpdateGroupProfile
 }
 
 type APICreateGroupLink struct {
@@ -218,6 +350,12 @@ func (c APICreateGroupLink) CommandString() string {
 	return "/_create link #" + jsToString(c.GroupId) + " " + jsToString(c.MemberRole)
 }
 
+var expectedResponsesAPICreateGroupLink = []string{"groupLinkCreated", "chatCmdError"}
+
+func (c APICreateGroupLink) ExpectedResponseTypes() []string {
+	return expectedResponsesAPICreateGroupLink
+}
+
 type APIGroupLinkMemberRole struct {
 	GroupId    int64  `json:"groupId"`
 	MemberRole string `json:"memberRole"`
@@ -225,6 +363,12 @@ type APIGroupLinkMemberRole struct {
 
 func (c APIGroupLinkMemberRole) CommandString() string {
 	return "/_set link role #" + jsToString(c.GroupId) + " " + jsToString(c.MemberRole)
+}
+
+var expectedResponsesAPIGroupLinkMemberRole = []string{"groupLink", "chatCmdError"}
+
+func (c APIGroupLinkMemberRole) ExpectedResponseTypes() []string {
+	return expectedResponsesAPIGroupLinkMemberRole
 }
 
 type APIDeleteGroupLink struct {
@@ -235,12 +379,24 @@ func (c APIDeleteGroupLink) CommandString() string {
 	return "/_delete link #" + jsToString(c.GroupId)
 }
 
+var expectedResponsesAPIDeleteGroupLink = []string{"groupLinkDeleted", "chatCmdError"}
+
+func (c APIDeleteGroupLink) ExpectedResponseTypes() []string {
+	return expectedResponsesAPIDeleteGroupLink
+}
+
 type APIGetGroupLink struct {
 	GroupId int64 `json:"groupId"`
 }
 
 func (c APIGetGroupLink) CommandString() string {
 	return "/_get link #" + jsToString(c.GroupId)
+}
+
+var expectedResponsesAPIGetGroupLink = []string{"groupLink", "chatCmdError"}
+
+func (c APIGetGroupLink) ExpectedResponseTypes() []string {
+	return expectedResponsesAPIGetGroupLink
 }
 
 type APIAddContact struct {
@@ -252,6 +408,12 @@ func (c APIAddContact) CommandString() string {
 	return "/_connect " + jsToString(c.UserId) + ternaryString(jsTruthy(c.Incognito), " incognito=on", "")
 }
 
+var expectedResponsesAPIAddContact = []string{"invitation", "chatCmdError"}
+
+func (c APIAddContact) ExpectedResponseTypes() []string {
+	return expectedResponsesAPIAddContact
+}
+
 type APIConnectPlan struct {
 	UserId         int64   `json:"userId"`
 	ConnectionLink *string `json:"connectionLink"`
@@ -259,6 +421,12 @@ type APIConnectPlan struct {
 
 func (c APIConnectPlan) CommandString() string {
 	return "/_connect plan " + jsToString(c.UserId) + " " + jsToString(c.ConnectionLink)
+}
+
+var expectedResponsesAPIConnectPlan = []string{"connectionPlan", "chatCmdError"}
+
+func (c APIConnectPlan) ExpectedResponseTypes() []string {
+	return expectedResponsesAPIConnectPlan
 }
 
 type APIConnect struct {
@@ -271,6 +439,12 @@ func (c APIConnect) CommandString() string {
 	return "/_connect " + jsToString(c.UserId) + ternaryString(jsTruthy(c.PreparedLink_), " "+jsToString(c.PreparedLink_), "")
 }
 
+var expectedResponsesAPIConnect = []string{"sentConfirmation", "contactAlreadyExists", "sentInvitation", "chatCmdError"}
+
+func (c APIConnect) ExpectedResponseTypes() []string {
+	return expectedResponsesAPIConnect
+}
+
 type Connect struct {
 	Incognito bool    `json:"incognito"`
 	ConnLink_ *string `json:"connLink_"`
@@ -278,6 +452,12 @@ type Connect struct {
 
 func (c Connect) CommandString() string {
 	return "/connect" + ternaryString(jsTruthy(c.ConnLink_), " "+jsToString(c.ConnLink_), "")
+}
+
+var expectedResponsesConnect = []string{"sentConfirmation", "contactAlreadyExists", "sentInvitation", "chatCmdError"}
+
+func (c Connect) ExpectedResponseTypes() []string {
+	return expectedResponsesConnect
 }
 
 type APIAcceptContact struct {
@@ -288,6 +468,12 @@ func (c APIAcceptContact) CommandString() string {
 	return "/_accept " + jsToString(c.ContactReqId)
 }
 
+var expectedResponsesAPIAcceptContact = []string{"acceptingContactRequest", "chatCmdError"}
+
+func (c APIAcceptContact) ExpectedResponseTypes() []string {
+	return expectedResponsesAPIAcceptContact
+}
+
 type APIRejectContact struct {
 	ContactReqId int64 `json:"contactReqId"`
 }
@@ -296,12 +482,24 @@ func (c APIRejectContact) CommandString() string {
 	return "/_reject " + jsToString(c.ContactReqId)
 }
 
+var expectedResponsesAPIRejectContact = []string{"contactRequestRejected", "chatCmdError"}
+
+func (c APIRejectContact) ExpectedResponseTypes() []string {
+	return expectedResponsesAPIRejectContact
+}
+
 type APIListContacts struct {
 	UserId int64 `json:"userId"`
 }
 
 func (c APIListContacts) CommandString() string {
 	return "/_contacts " + jsToString(c.UserId)
+}
+
+var expectedResponsesAPIListContacts = []string{"contactsList", "chatCmdError"}
+
+func (c APIListContacts) ExpectedResponseTypes() []string {
+	return expectedResponsesAPIListContacts
 }
 
 type APIListGroups struct {
@@ -314,6 +512,12 @@ func (c APIListGroups) CommandString() string {
 	return "/_groups " + jsToString(c.UserId) + ternaryString(jsTruthy(c.ContactId_), " @"+jsToString(c.ContactId_), "") + ternaryString(jsTruthy(c.Search), " "+jsToString(c.Search), "")
 }
 
+var expectedResponsesAPIListGroups = []string{"groupsList", "chatCmdError"}
+
+func (c APIListGroups) ExpectedResponseTypes() []string {
+	return expectedResponsesAPIListGroups
+}
+
 type APIDeleteChat struct {
 	ChatRef        string `json:"chatRef"`
 	ChatDeleteMode string `json:"chatDeleteMode"`
@@ -323,11 +527,23 @@ func (c APIDeleteChat) CommandString() string {
 	return "/_delete " + jsToString(c.ChatRef) + " " + jsToString(c.ChatDeleteMode)
 }
 
+var expectedResponsesAPIDeleteChat = []string{"contactDeleted", "contactConnectionDeleted", "groupDeletedUser", "chatCmdError"}
+
+func (c APIDeleteChat) ExpectedResponseTypes() []string {
+	return expectedResponsesAPIDeleteChat
+}
+
 type ShowActiveUser struct {
 }
 
 func (c ShowActiveUser) CommandString() string {
 	return "/user"
+}
+
+var expectedResponsesShowActiveUser = []string{"activeUser", "chatCmdError"}
+
+func (c ShowActiveUser) ExpectedResponseTypes() []string {
+	return expectedResponsesShowActiveUser
 }
 
 type CreateActiveUser struct {
@@ -338,11 +554,23 @@ func (c CreateActiveUser) CommandString() string {
 	return "/_create user " + mustJSON(c.NewUser)
 }
 
+var expectedResponsesCreateActiveUser = []string{"activeUser", "chatCmdError"}
+
+func (c CreateActiveUser) ExpectedResponseTypes() []string {
+	return expectedResponsesCreateActiveUser
+}
+
 type ListUsers struct {
 }
 
 func (c ListUsers) CommandString() string {
 	return "/users"
+}
+
+var expectedResponsesListUsers = []string{"usersList", "chatCmdError"}
+
+func (c ListUsers) ExpectedResponseTypes() []string {
+	return expectedResponsesListUsers
 }
 
 type APISetActiveUser struct {
@@ -352,6 +580,12 @@ type APISetActiveUser struct {
 
 func (c APISetActiveUser) CommandString() string {
 	return "/_user " + jsToString(c.UserId) + ternaryString(jsTruthy(c.ViewPwd), " "+mustJSON(c.ViewPwd), "")
+}
+
+var expectedResponsesAPISetActiveUser = []string{"activeUser", "chatCmdError"}
+
+func (c APISetActiveUser) ExpectedResponseTypes() []string {
+	return expectedResponsesAPISetActiveUser
 }
 
 type APIDeleteUser struct {
@@ -364,6 +598,12 @@ func (c APIDeleteUser) CommandString() string {
 	return "/_delete user " + jsToString(c.UserId) + " del_smp=" + ternaryString(jsTruthy(c.DelSMPQueues), "on", "off") + ternaryString(jsTruthy(c.ViewPwd), " "+mustJSON(c.ViewPwd), "")
 }
 
+var expectedResponsesAPIDeleteUser = []string{"cmdOk", "chatCmdError"}
+
+func (c APIDeleteUser) ExpectedResponseTypes() []string {
+	return expectedResponsesAPIDeleteUser
+}
+
 type APIUpdateProfile struct {
 	UserId  int64          `json:"userId"`
 	Profile map[string]any `json:"profile"`
@@ -373,6 +613,12 @@ func (c APIUpdateProfile) CommandString() string {
 	return "/_profile " + jsToString(c.UserId) + " " + mustJSON(c.Profile)
 }
 
+var expectedResponsesAPIUpdateProfile = []string{"userProfileUpdated", "userProfileNoChange", "chatCmdError"}
+
+func (c APIUpdateProfile) ExpectedResponseTypes() []string {
+	return expectedResponsesAPIUpdateProfile
+}
+
 type APISetContactPrefs struct {
 	ContactId   int64          `json:"contactId"`
 	Preferences map[string]any `json:"preferences"`
@@ -380,4 +626,10 @@ type APISetContactPrefs struct {
 
 func (c APISetContactPrefs) CommandString() string {
 	return "/_set prefs @" + jsToString(c.ContactId) + " " + mustJSON(c.Preferences)
+}
+
+var expectedResponsesAPISetContactPrefs = []string{"contactPrefsUpdated", "chatCmdError"}
+
+func (c APISetContactPrefs) ExpectedResponseTypes() []string {
+	return expectedResponsesAPISetContactPrefs
 }

@@ -55,6 +55,26 @@ func RenderCommandRequestsGo(pkg string, commands []TSCommand) ([]byte, error) {
 		b.WriteString(goExpr)
 		b.WriteString("\n")
 		b.WriteString("}\n\n")
+
+		if len(cmd.ResponseTags) > 0 {
+			b.WriteString("var expectedResponses")
+			b.WriteString(cmd.Name)
+			b.WriteString(" = []string{")
+			for i, tag := range cmd.ResponseTags {
+				if i > 0 {
+					b.WriteString(", ")
+				}
+				b.WriteString(strconv.Quote(tag))
+			}
+			b.WriteString("}\n\n")
+			b.WriteString("func (c ")
+			b.WriteString(cmd.Name)
+			b.WriteString(") ExpectedResponseTypes() []string {\n")
+			b.WriteString("\treturn expectedResponses")
+			b.WriteString(cmd.Name)
+			b.WriteString("\n")
+			b.WriteString("}\n\n")
+		}
 	}
 
 	src, err := format.Source(b.Bytes())

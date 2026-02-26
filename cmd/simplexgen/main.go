@@ -108,7 +108,7 @@ func run(inputPath, outputPath, pkgName, eventsPath, respPath, tagsOut, recordsO
 	}
 	defer cmdTSFile.Close()
 
-	tsCommands, err := spec.ParseTSCommands(cmdTSFile, doc)
+	tsCommands, err := spec.ParseTSCommands(cmdTSFile, doc, responses)
 	if err != nil {
 		return fmt.Errorf("parse ts commands: %w", err)
 	}
