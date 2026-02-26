@@ -604,6 +604,211 @@ func TestListGroupMembers(t *testing.T) {
 	}
 }
 
+func TestCreateGroup(t *testing.T) {
+	t.Parallel()
+
+	transport := newMockTransport()
+	c, err := New(transport)
+	if err != nil {
+		t.Fatalf("new client: %v", err)
+	}
+	defer c.Close(context.Background())
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	done := make(chan struct{})
+	go func() {
+		rawReq := <-transport.writeCh
+		var req struct {
+			CorrID string `json:"corrId"`
+		}
+		_ = json.Unmarshal(rawReq, &req)
+		transport.readCh <- []byte(`{"corrId":"` + req.CorrID + `","resp":{"type":"groupCreated","user":{"userId":1},"groupInfo":{"groupId":7}}}`)
+		close(done)
+	}()
+
+	groupRaw, err := c.CreateGroup(ctx, 1, false, map[string]any{"displayName": "support"})
+	if err != nil {
+		t.Fatalf("CreateGroup: %v", err)
+	}
+	<-done
+
+	if string(groupRaw) == "" {
+		t.Fatalf("unexpected empty group payload")
+	}
+}
+
+func TestUpdateGroupProfile(t *testing.T) {
+	t.Parallel()
+
+	transport := newMockTransport()
+	c, err := New(transport)
+	if err != nil {
+		t.Fatalf("new client: %v", err)
+	}
+	defer c.Close(context.Background())
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	done := make(chan struct{})
+	go func() {
+		rawReq := <-transport.writeCh
+		var req struct {
+			CorrID string `json:"corrId"`
+		}
+		_ = json.Unmarshal(rawReq, &req)
+		transport.readCh <- []byte(`{"corrId":"` + req.CorrID + `","resp":{"type":"groupUpdated","user":{"userId":1},"fromGroup":{},"toGroup":{"groupId":7},"member_":null}}`)
+		close(done)
+	}()
+
+	groupRaw, err := c.UpdateGroupProfile(ctx, 7, map[string]any{"displayName": "new"})
+	if err != nil {
+		t.Fatalf("UpdateGroupProfile: %v", err)
+	}
+	<-done
+
+	if string(groupRaw) == "" {
+		t.Fatalf("unexpected empty group payload")
+	}
+}
+
+func TestCreateGroupLink(t *testing.T) {
+	t.Parallel()
+
+	transport := newMockTransport()
+	c, err := New(transport)
+	if err != nil {
+		t.Fatalf("new client: %v", err)
+	}
+	defer c.Close(context.Background())
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	done := make(chan struct{})
+	go func() {
+		rawReq := <-transport.writeCh
+		var req struct {
+			CorrID string `json:"corrId"`
+		}
+		_ = json.Unmarshal(rawReq, &req)
+		transport.readCh <- []byte(`{"corrId":"` + req.CorrID + `","resp":{"type":"groupLinkCreated","user":{"userId":1},"groupInfo":{},"groupLink":{"uri":"smp://group"}}}`)
+		close(done)
+	}()
+
+	linkRaw, err := c.CreateGroupLink(ctx, 7, "member")
+	if err != nil {
+		t.Fatalf("CreateGroupLink: %v", err)
+	}
+	<-done
+
+	if string(linkRaw) == "" {
+		t.Fatalf("unexpected empty link payload")
+	}
+}
+
+func TestSetGroupLinkMemberRole(t *testing.T) {
+	t.Parallel()
+
+	transport := newMockTransport()
+	c, err := New(transport)
+	if err != nil {
+		t.Fatalf("new client: %v", err)
+	}
+	defer c.Close(context.Background())
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	done := make(chan struct{})
+	go func() {
+		rawReq := <-transport.writeCh
+		var req struct {
+			CorrID string `json:"corrId"`
+		}
+		_ = json.Unmarshal(rawReq, &req)
+		transport.readCh <- []byte(`{"corrId":"` + req.CorrID + `","resp":{"type":"groupLink","user":{"userId":1},"groupInfo":{},"groupLink":{"uri":"smp://group"}}}`)
+		close(done)
+	}()
+
+	linkRaw, err := c.SetGroupLinkMemberRole(ctx, 7, "admin")
+	if err != nil {
+		t.Fatalf("SetGroupLinkMemberRole: %v", err)
+	}
+	<-done
+
+	if string(linkRaw) == "" {
+		t.Fatalf("unexpected empty link payload")
+	}
+}
+
+func TestDeleteGroupLink(t *testing.T) {
+	t.Parallel()
+
+	transport := newMockTransport()
+	c, err := New(transport)
+	if err != nil {
+		t.Fatalf("new client: %v", err)
+	}
+	defer c.Close(context.Background())
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	done := make(chan struct{})
+	go func() {
+		rawReq := <-transport.writeCh
+		var req struct {
+			CorrID string `json:"corrId"`
+		}
+		_ = json.Unmarshal(rawReq, &req)
+		transport.readCh <- []byte(`{"corrId":"` + req.CorrID + `","resp":{"type":"groupLinkDeleted","user":{"userId":1},"groupInfo":{}}}`)
+		close(done)
+	}()
+
+	if err := c.DeleteGroupLink(ctx, 7); err != nil {
+		t.Fatalf("DeleteGroupLink: %v", err)
+	}
+	<-done
+}
+
+func TestGetGroupLink(t *testing.T) {
+	t.Parallel()
+
+	transport := newMockTransport()
+	c, err := New(transport)
+	if err != nil {
+		t.Fatalf("new client: %v", err)
+	}
+	defer c.Close(context.Background())
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	done := make(chan struct{})
+	go func() {
+		rawReq := <-transport.writeCh
+		var req struct {
+			CorrID string `json:"corrId"`
+		}
+		_ = json.Unmarshal(rawReq, &req)
+		transport.readCh <- []byte(`{"corrId":"` + req.CorrID + `","resp":{"type":"groupLink","user":{"userId":1},"groupInfo":{},"groupLink":{"uri":"smp://group"}}}`)
+		close(done)
+	}()
+
+	linkRaw, err := c.GetGroupLink(ctx, 7)
+	if err != nil {
+		t.Fatalf("GetGroupLink: %v", err)
+	}
+	<-done
+
+	if string(linkRaw) == "" {
+		t.Fatalf("unexpected empty link payload")
+	}
+}
+
 func TestSendTextMessage(t *testing.T) {
 	t.Parallel()
 

@@ -91,6 +91,12 @@ High-level helper methods currently available on `*client.Client`:
 - `RemoveGroupMembers`
 - `LeaveGroup`
 - `ListGroupMembers`
+- `CreateGroup`
+- `UpdateGroupProfile`
+- `CreateGroupLink`
+- `SetGroupLinkMemberRole`
+- `DeleteGroupLink`
+- `GetGroupLink`
 - `EnableAddressAutoAccept`
 - `SendTextMessage`
 - `SendTextToContact`

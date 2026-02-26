@@ -282,6 +282,103 @@ func (c *Client) ListGroupMembers(ctx context.Context, groupID int64) (json.RawM
 	return nil, fmt.Errorf("missing response payload for %s", result.Message.Resp.Type)
 }
 
+func (c *Client) CreateGroup(ctx context.Context, userID int64, incognito bool, groupProfile map[string]any) (json.RawMessage, error) {
+	result, err := c.SendAPINewGroup(ctx, command.APINewGroup{
+		UserId:       userID,
+		Incognito:    incognito,
+		GroupProfile: groupProfile,
+	})
+	if err != nil {
+		return nil, err
+	}
+	if result.GroupCreated != nil {
+		return append([]byte(nil), result.GroupCreated.GroupInfo...), nil
+	}
+	if result.ChatCmdError != nil {
+		return nil, commandErrorFromRaw(result.Message.Resp.Type, result.Message.Resp.Raw)
+	}
+	return nil, fmt.Errorf("missing response payload for %s", result.Message.Resp.Type)
+}
+
+func (c *Client) UpdateGroupProfile(ctx context.Context, groupID int64, groupProfile map[string]any) (json.RawMessage, error) {
+	result, err := c.SendAPIUpdateGroupProfile(ctx, command.APIUpdateGroupProfile{
+		GroupId:      groupID,
+		GroupProfile: groupProfile,
+	})
+	if err != nil {
+		return nil, err
+	}
+	if result.GroupUpdated != nil {
+		return append([]byte(nil), result.GroupUpdated.ToGroup...), nil
+	}
+	if result.ChatCmdError != nil {
+		return nil, commandErrorFromRaw(result.Message.Resp.Type, result.Message.Resp.Raw)
+	}
+	return nil, fmt.Errorf("missing response payload for %s", result.Message.Resp.Type)
+}
+
+func (c *Client) CreateGroupLink(ctx context.Context, groupID int64, memberRole string) (json.RawMessage, error) {
+	result, err := c.SendAPICreateGroupLink(ctx, command.APICreateGroupLink{
+		GroupId:    groupID,
+		MemberRole: memberRole,
+	})
+	if err != nil {
+		return nil, err
+	}
+	if result.GroupLinkCreated != nil {
+		return append([]byte(nil), result.GroupLinkCreated.GroupLink...), nil
+	}
+	if result.ChatCmdError != nil {
+		return nil, commandErrorFromRaw(result.Message.Resp.Type, result.Message.Resp.Raw)
+	}
+	return nil, fmt.Errorf("missing response payload for %s", result.Message.Resp.Type)
+}
+
+func (c *Client) SetGroupLinkMemberRole(ctx context.Context, groupID int64, memberRole string) (json.RawMessage, error) {
+	result, err := c.SendAPIGroupLinkMemberRole(ctx, command.APIGroupLinkMemberRole{
+		GroupId:    groupID,
+		MemberRole: memberRole,
+	})
+	if err != nil {
+		return nil, err
+	}
+	if result.GroupLink != nil {
+		return append([]byte(nil), result.GroupLink.GroupLink...), nil
+	}
+	if result.ChatCmdError != nil {
+		return nil, commandErrorFromRaw(result.Message.Resp.Type, result.Message.Resp.Raw)
+	}
+	return nil, fmt.Errorf("missing response payload for %s", result.Message.Resp.Type)
+}
+
+func (c *Client) DeleteGroupLink(ctx context.Context, groupID int64) error {
+	result, err := c.SendAPIDeleteGroupLink(ctx, command.APIDeleteGroupLink{GroupId: groupID})
+	if err != nil {
+		return err
+	}
+	if result.GroupLinkDeleted != nil {
+		return nil
+	}
+	if result.ChatCmdError != nil {
+		return commandErrorFromRaw(result.Message.Resp.Type, result.Message.Resp.Raw)
+	}
+	return fmt.Errorf("missing response payload for %s", result.Message.Resp.Type)
+}
+
+func (c *Client) GetGroupLink(ctx context.Context, groupID int64) (json.RawMessage, error) {
+	result, err := c.SendAPIGetGroupLink(ctx, command.APIGetGroupLink{GroupId: groupID})
+	if err != nil {
+		return nil, err
+	}
+	if result.GroupLink != nil {
+		return append([]byte(nil), result.GroupLink.GroupLink...), nil
+	}
+	if result.ChatCmdError != nil {
+		return nil, commandErrorFromRaw(result.Message.Resp.Type, result.Message.Resp.Raw)
+	}
+	return nil, fmt.Errorf("missing response payload for %s", result.Message.Resp.Type)
+}
+
 func (c *Client) CreateContactInvitation(ctx context.Context, userID int64, incognito bool) (string, error) {
 	result, err := c.SendAPIAddContact(ctx, command.APIAddContact{
 		UserId:    userID,
