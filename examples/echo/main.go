@@ -9,7 +9,6 @@ import (
 
 	"github.com/Malomalsky/go-simplex/sdk/bot"
 	"github.com/Malomalsky/go-simplex/sdk/client"
-	"github.com/Malomalsky/go-simplex/sdk/types"
 )
 
 func main() {
@@ -36,15 +35,12 @@ func main() {
 	rt.OnError(func(ctx context.Context, err error) {
 		log.Printf("runtime error: %v", err)
 	})
-	bot.OnTyped(rt, types.EventTypeNewChatItems, func(ctx context.Context, cli *client.Client, event types.EventNewChatItems) error {
-		messages := bot.ExtractDirectTextMessagesFromNewChatItems(event)
-		for _, m := range messages {
-			reply := "echo: " + m.Text
-			if err := cli.SendTextToContact(ctx, m.ContactID, reply); err != nil {
-				return err
-			}
-			log.Printf("replied to contact %d", m.ContactID)
+	bot.OnDirectText(rt, func(ctx context.Context, cli *client.Client, msg bot.DirectTextMessage) error {
+		reply := "echo: " + msg.Text
+		if err := msg.Reply(ctx, cli, reply); err != nil {
+			return err
 		}
+		log.Printf("replied to contact %d", msg.ContactID)
 		return nil
 	})
 

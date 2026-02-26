@@ -1,8 +1,10 @@
 package bot
 
 import (
+	"context"
 	"fmt"
 
+	"github.com/Malomalsky/go-simplex/sdk/client"
 	"github.com/Malomalsky/go-simplex/sdk/protocol"
 	"github.com/Malomalsky/go-simplex/sdk/types"
 )
@@ -10,6 +12,13 @@ import (
 type DirectTextMessage struct {
 	ContactID int64
 	Text      string
+}
+
+func (m DirectTextMessage) Reply(ctx context.Context, cli *client.Client, text string) error {
+	if cli == nil {
+		return fmt.Errorf("client is nil")
+	}
+	return cli.SendTextToContact(ctx, m.ContactID, text)
 }
 
 func ExtractDirectTextMessages(msg protocol.Message) ([]DirectTextMessage, error) {

@@ -12,6 +12,7 @@ import (
 
 type Handler func(ctx context.Context, cli *client.Client, msg protocol.Message) error
 type DecodedHandler func(ctx context.Context, cli *client.Client, event any) error
+type DirectTextHandler func(ctx context.Context, cli *client.Client, msg DirectTextMessage) error
 type ErrorHandler func(ctx context.Context, err error)
 
 type Runtime struct {
@@ -71,6 +72,20 @@ func OnTyped[T any](r *Runtime, eventType types.EventType, h func(ctx context.Co
 			return fmt.Errorf("decoded event type mismatch for %s: got %T", eventType, event)
 		}
 		return h(ctx, cli, typed)
+	})
+}
+
+func OnDirectText(r *Runtime, h DirectTextHandler) {
+	if r == nil || h == nil {
+		return
+	}
+	OnTyped(r, types.EventTypeNewChatItems, func(ctx context.Context, cli *client.Client, event types.EventNewChatItems) error {
+		for _, msg := range ExtractDirectTextMessagesFromNewChatItems(event) {
+			if err := h(ctx, cli, msg); err != nil {
+				return err
+			}
+		}
+		return nil
 	})
 }
 

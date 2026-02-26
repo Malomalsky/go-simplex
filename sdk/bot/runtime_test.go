@@ -201,3 +201,40 @@ func TestRuntimeOnTyped(t *testing.T) {
 		t.Fatalf("timeout waiting typed handler")
 	}
 }
+
+func TestRuntimeOnDirectText(t *testing.T) {
+	t.Parallel()
+
+	tr := newMockTransport()
+	cli, err := client.New(tr)
+	if err != nil {
+		t.Fatalf("new client: %v", err)
+	}
+	defer cli.Close(context.Background())
+
+	rt, err := NewRuntime(cli)
+	if err != nil {
+		t.Fatalf("new runtime: %v", err)
+	}
+
+	got := make(chan DirectTextMessage, 1)
+	OnDirectText(rt, func(ctx context.Context, cli *client.Client, msg DirectTextMessage) error {
+		got <- msg
+		return nil
+	})
+
+	runCtx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go rt.Run(runCtx)
+
+	tr.readCh <- []byte(`{"resp":{"type":"newChatItems","chatItems":[{"chatInfo":{"type":"direct","contact":{"contactId":9}},"chatItem":{"content":{"type":"rcvMsgContent","msgContent":{"type":"text","text":"ping"}}}},{"chatInfo":{"type":"group"},"chatItem":{"content":{"type":"rcvMsgContent","msgContent":{"type":"text","text":"ignore"}}}}]}}`)
+
+	select {
+	case msg := <-got:
+		if msg.ContactID != 9 || msg.Text != "ping" {
+			t.Fatalf("unexpected direct text message: %+v", msg)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatalf("timeout waiting direct text handler")
+	}
+}

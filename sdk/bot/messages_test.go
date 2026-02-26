@@ -1,8 +1,12 @@
 package bot
 
 import (
+	"context"
+	"encoding/json"
 	"testing"
+	"time"
 
+	"github.com/Malomalsky/go-simplex/sdk/client"
 	"github.com/Malomalsky/go-simplex/sdk/protocol"
 	"github.com/Malomalsky/go-simplex/sdk/types"
 )
@@ -84,5 +88,46 @@ func TestExtractDirectTextMessagesFromNewChatItems(t *testing.T) {
 	}
 	if got[0].ContactID != 7 || got[0].Text != "ping" {
 		t.Fatalf("unexpected message: %+v", got[0])
+	}
+}
+
+func TestDirectTextMessageReply(t *testing.T) {
+	t.Parallel()
+
+	transport := newMockTransport()
+	cli, err := client.New(transport)
+	if err != nil {
+		t.Fatalf("new client: %v", err)
+	}
+	defer cli.Close(context.Background())
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	done := make(chan struct{})
+	go func() {
+		rawReq := <-transport.writeCh
+		var req struct {
+			CorrID string `json:"corrId"`
+		}
+		_ = json.Unmarshal(rawReq, &req)
+		transport.readCh <- []byte(`{"corrId":"` + req.CorrID + `","resp":{"type":"newChatItems","chatItems":[]}}`)
+		close(done)
+	}()
+
+	msg := DirectTextMessage{ContactID: 42, Text: "hello"}
+	if err := msg.Reply(ctx, cli, "echo: hello"); err != nil {
+		t.Fatalf("reply: %v", err)
+	}
+
+	<-done
+}
+
+func TestDirectTextMessageReplyNilClient(t *testing.T) {
+	t.Parallel()
+
+	msg := DirectTextMessage{ContactID: 1, Text: "hello"}
+	if err := msg.Reply(context.Background(), nil, "echo"); err == nil {
+		t.Fatalf("expected nil client error")
 	}
 }

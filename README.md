@@ -2,7 +2,7 @@
 
 Go SDK for building bots on top of the official SimpleX Bot API.
 
-Current stage: research and architecture planning.
+Current stage: implementation in progress.
 
 ## Documents
 
@@ -60,15 +60,20 @@ if err != nil {
     panic(err)
 }
 
-bot.OnTyped(rt, types.EventTypeNewChatItems, func(ctx context.Context, cli *client.Client, event types.EventNewChatItems) error {
-    // handle typed event
-    return nil
+bot.OnDirectText(rt, func(ctx context.Context, cli *client.Client, msg bot.DirectTextMessage) error {
+    return msg.Reply(ctx, cli, "echo: "+msg.Text)
 })
 
 if err := rt.Run(ctx); err != nil && !errors.Is(err, context.Canceled) {
     panic(err)
 }
 ```
+
+Bot runtime helpers:
+
+- `bot.OnTyped`
+- `bot.OnDirectText`
+- `bot.ExtractDirectTextMessages`
 
 High-level helper methods currently available on `*client.Client`:
 
@@ -81,6 +86,9 @@ High-level helper methods currently available on `*client.Client`:
 - `ListContacts`
 - `ListGroups`
 - `CreateContactInvitation`
+- `ConnectPlan`
+- `ConnectWithPreparedLink`
+- `ConnectWithLink`
 - `AcceptContactRequest`
 - `RejectContactRequest`
 - `CreateUser`
