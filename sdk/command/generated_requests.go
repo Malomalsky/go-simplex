@@ -2,19 +2,12 @@
 
 package command
 
-import (
-	"encoding/json"
-	"fmt"
-
-	"github.com/dop251/goja"
-)
-
 type APICreateMyAddress struct {
 	UserId int64 `json:"userId"`
 }
 
 func (c APICreateMyAddress) CommandString() string {
-	return evalJSCommandExpression(`'/_address ' + self.userId`, c)
+	return evalCommandExpression(`'/_address ' + self.userId`, c)
 }
 
 type APIDeleteMyAddress struct {
@@ -22,7 +15,7 @@ type APIDeleteMyAddress struct {
 }
 
 func (c APIDeleteMyAddress) CommandString() string {
-	return evalJSCommandExpression(`'/_delete_address ' + self.userId`, c)
+	return evalCommandExpression(`'/_delete_address ' + self.userId`, c)
 }
 
 type APIShowMyAddress struct {
@@ -30,7 +23,7 @@ type APIShowMyAddress struct {
 }
 
 func (c APIShowMyAddress) CommandString() string {
-	return evalJSCommandExpression(`'/_show_address ' + self.userId`, c)
+	return evalCommandExpression(`'/_show_address ' + self.userId`, c)
 }
 
 type APISetProfileAddress struct {
@@ -39,7 +32,7 @@ type APISetProfileAddress struct {
 }
 
 func (c APISetProfileAddress) CommandString() string {
-	return evalJSCommandExpression(`'/_profile_address ' + self.userId + ' ' + (self.enable ? 'on' : 'off')`, c)
+	return evalCommandExpression(`'/_profile_address ' + self.userId + ' ' + (self.enable ? 'on' : 'off')`, c)
 }
 
 type APISetAddressSettings struct {
@@ -48,7 +41,7 @@ type APISetAddressSettings struct {
 }
 
 func (c APISetAddressSettings) CommandString() string {
-	return evalJSCommandExpression(`'/_address_settings ' + self.userId + ' ' + JSON.stringify(self.settings)`, c)
+	return evalCommandExpression(`'/_address_settings ' + self.userId + ' ' + JSON.stringify(self.settings)`, c)
 }
 
 type APISendMessages struct {
@@ -59,7 +52,7 @@ type APISendMessages struct {
 }
 
 func (c APISendMessages) CommandString() string {
-	return evalJSCommandExpression(`'/_send ' + self.sendRef.toString() + (self.liveMessage ? ' live=on' : '') + (self.ttl ? ' ttl=' + self.ttl : '') + ' json ' + JSON.stringify(self.composedMessages)`, c)
+	return evalCommandExpression(`'/_send ' + self.sendRef.toString() + (self.liveMessage ? ' live=on' : '') + (self.ttl ? ' ttl=' + self.ttl : '') + ' json ' + JSON.stringify(self.composedMessages)`, c)
 }
 
 type APIUpdateChatItem struct {
@@ -70,7 +63,7 @@ type APIUpdateChatItem struct {
 }
 
 func (c APIUpdateChatItem) CommandString() string {
-	return evalJSCommandExpression(`'/_update item ' + self.chatRef.toString() + ' ' + self.chatItemId + (self.liveMessage ? ' live=on' : '') + ' json ' + JSON.stringify(self.updatedMessage)`, c)
+	return evalCommandExpression(`'/_update item ' + self.chatRef.toString() + ' ' + self.chatItemId + (self.liveMessage ? ' live=on' : '') + ' json ' + JSON.stringify(self.updatedMessage)`, c)
 }
 
 type APIDeleteChatItem struct {
@@ -80,7 +73,7 @@ type APIDeleteChatItem struct {
 }
 
 func (c APIDeleteChatItem) CommandString() string {
-	return evalJSCommandExpression(`'/_delete item ' + self.chatRef.toString() + ' ' + self.chatItemIds.join(',') + ' ' + self.deleteMode`, c)
+	return evalCommandExpression(`'/_delete item ' + self.chatRef.toString() + ' ' + self.chatItemIds.join(',') + ' ' + self.deleteMode`, c)
 }
 
 type APIDeleteMemberChatItem struct {
@@ -89,7 +82,7 @@ type APIDeleteMemberChatItem struct {
 }
 
 func (c APIDeleteMemberChatItem) CommandString() string {
-	return evalJSCommandExpression(`'/_delete member item #' + self.groupId + ' ' + self.chatItemIds.join(',')`, c)
+	return evalCommandExpression(`'/_delete member item #' + self.groupId + ' ' + self.chatItemIds.join(',')`, c)
 }
 
 type APIChatItemReaction struct {
@@ -100,7 +93,7 @@ type APIChatItemReaction struct {
 }
 
 func (c APIChatItemReaction) CommandString() string {
-	return evalJSCommandExpression(`'/_reaction ' + self.chatRef.toString() + ' ' + self.chatItemId + ' ' + (self.add ? 'on' : 'off') + ' ' + JSON.stringify(self.reaction)`, c)
+	return evalCommandExpression(`'/_reaction ' + self.chatRef.toString() + ' ' + self.chatItemId + ' ' + (self.add ? 'on' : 'off') + ' ' + JSON.stringify(self.reaction)`, c)
 }
 
 type ReceiveFile struct {
@@ -112,7 +105,7 @@ type ReceiveFile struct {
 }
 
 func (c ReceiveFile) CommandString() string {
-	return evalJSCommandExpression(`'/freceive ' + self.fileId + (self.userApprovedRelays ? ' approved_relays=on' : '') + (typeof self.storeEncrypted == 'boolean' ? ' encrypt=' + (self.storeEncrypted ? 'on' : 'off') : '') + (typeof self.fileInline == 'boolean' ? ' inline=' + (self.fileInline ? 'on' : 'off') : '') + (self.filePath ? ' ' + self.filePath : '')`, c)
+	return evalCommandExpression(`'/freceive ' + self.fileId + (self.userApprovedRelays ? ' approved_relays=on' : '') + (typeof self.storeEncrypted == 'boolean' ? ' encrypt=' + (self.storeEncrypted ? 'on' : 'off') : '') + (typeof self.fileInline == 'boolean' ? ' inline=' + (self.fileInline ? 'on' : 'off') : '') + (self.filePath ? ' ' + self.filePath : '')`, c)
 }
 
 type CancelFile struct {
@@ -120,7 +113,7 @@ type CancelFile struct {
 }
 
 func (c CancelFile) CommandString() string {
-	return evalJSCommandExpression(`'/fcancel ' + self.fileId`, c)
+	return evalCommandExpression(`'/fcancel ' + self.fileId`, c)
 }
 
 type APIAddMember struct {
@@ -130,7 +123,7 @@ type APIAddMember struct {
 }
 
 func (c APIAddMember) CommandString() string {
-	return evalJSCommandExpression(`'/_add #' + self.groupId + ' ' + self.contactId + ' ' + self.memberRole`, c)
+	return evalCommandExpression(`'/_add #' + self.groupId + ' ' + self.contactId + ' ' + self.memberRole`, c)
 }
 
 type APIJoinGroup struct {
@@ -138,7 +131,7 @@ type APIJoinGroup struct {
 }
 
 func (c APIJoinGroup) CommandString() string {
-	return evalJSCommandExpression(`'/_join #' + self.groupId`, c)
+	return evalCommandExpression(`'/_join #' + self.groupId`, c)
 }
 
 type APIAcceptMember struct {
@@ -148,7 +141,7 @@ type APIAcceptMember struct {
 }
 
 func (c APIAcceptMember) CommandString() string {
-	return evalJSCommandExpression(`'/_accept member #' + self.groupId + ' ' + self.groupMemberId + ' ' + self.memberRole`, c)
+	return evalCommandExpression(`'/_accept member #' + self.groupId + ' ' + self.groupMemberId + ' ' + self.memberRole`, c)
 }
 
 type APIMembersRole struct {
@@ -158,7 +151,7 @@ type APIMembersRole struct {
 }
 
 func (c APIMembersRole) CommandString() string {
-	return evalJSCommandExpression(`'/_member role #' + self.groupId + ' ' + self.groupMemberIds.join(',') + ' ' + self.memberRole`, c)
+	return evalCommandExpression(`'/_member role #' + self.groupId + ' ' + self.groupMemberIds.join(',') + ' ' + self.memberRole`, c)
 }
 
 type APIBlockMembersForAll struct {
@@ -168,7 +161,7 @@ type APIBlockMembersForAll struct {
 }
 
 func (c APIBlockMembersForAll) CommandString() string {
-	return evalJSCommandExpression(`'/_block #' + self.groupId + ' ' + self.groupMemberIds.join(',') + ' blocked=' + (self.blocked ? 'on' : 'off')`, c)
+	return evalCommandExpression(`'/_block #' + self.groupId + ' ' + self.groupMemberIds.join(',') + ' blocked=' + (self.blocked ? 'on' : 'off')`, c)
 }
 
 type APIRemoveMembers struct {
@@ -178,7 +171,7 @@ type APIRemoveMembers struct {
 }
 
 func (c APIRemoveMembers) CommandString() string {
-	return evalJSCommandExpression(`'/_remove #' + self.groupId + ' ' + self.groupMemberIds.join(',') + (self.withMessages ? ' messages=on' : '')`, c)
+	return evalCommandExpression(`'/_remove #' + self.groupId + ' ' + self.groupMemberIds.join(',') + (self.withMessages ? ' messages=on' : '')`, c)
 }
 
 type APILeaveGroup struct {
@@ -186,7 +179,7 @@ type APILeaveGroup struct {
 }
 
 func (c APILeaveGroup) CommandString() string {
-	return evalJSCommandExpression(`'/_leave #' + self.groupId`, c)
+	return evalCommandExpression(`'/_leave #' + self.groupId`, c)
 }
 
 type APIListMembers struct {
@@ -194,7 +187,7 @@ type APIListMembers struct {
 }
 
 func (c APIListMembers) CommandString() string {
-	return evalJSCommandExpression(`'/_members #' + self.groupId`, c)
+	return evalCommandExpression(`'/_members #' + self.groupId`, c)
 }
 
 type APINewGroup struct {
@@ -204,7 +197,7 @@ type APINewGroup struct {
 }
 
 func (c APINewGroup) CommandString() string {
-	return evalJSCommandExpression(`'/_group ' + self.userId + (self.incognito ? ' incognito=on' : '') + ' ' + JSON.stringify(self.groupProfile)`, c)
+	return evalCommandExpression(`'/_group ' + self.userId + (self.incognito ? ' incognito=on' : '') + ' ' + JSON.stringify(self.groupProfile)`, c)
 }
 
 type APIUpdateGroupProfile struct {
@@ -213,7 +206,7 @@ type APIUpdateGroupProfile struct {
 }
 
 func (c APIUpdateGroupProfile) CommandString() string {
-	return evalJSCommandExpression(`'/_group_profile #' + self.groupId + ' ' + JSON.stringify(self.groupProfile)`, c)
+	return evalCommandExpression(`'/_group_profile #' + self.groupId + ' ' + JSON.stringify(self.groupProfile)`, c)
 }
 
 type APICreateGroupLink struct {
@@ -222,7 +215,7 @@ type APICreateGroupLink struct {
 }
 
 func (c APICreateGroupLink) CommandString() string {
-	return evalJSCommandExpression(`'/_create link #' + self.groupId + ' ' + self.memberRole`, c)
+	return evalCommandExpression(`'/_create link #' + self.groupId + ' ' + self.memberRole`, c)
 }
 
 type APIGroupLinkMemberRole struct {
@@ -231,7 +224,7 @@ type APIGroupLinkMemberRole struct {
 }
 
 func (c APIGroupLinkMemberRole) CommandString() string {
-	return evalJSCommandExpression(`'/_set link role #' + self.groupId + ' ' + self.memberRole`, c)
+	return evalCommandExpression(`'/_set link role #' + self.groupId + ' ' + self.memberRole`, c)
 }
 
 type APIDeleteGroupLink struct {
@@ -239,7 +232,7 @@ type APIDeleteGroupLink struct {
 }
 
 func (c APIDeleteGroupLink) CommandString() string {
-	return evalJSCommandExpression(`'/_delete link #' + self.groupId`, c)
+	return evalCommandExpression(`'/_delete link #' + self.groupId`, c)
 }
 
 type APIGetGroupLink struct {
@@ -247,7 +240,7 @@ type APIGetGroupLink struct {
 }
 
 func (c APIGetGroupLink) CommandString() string {
-	return evalJSCommandExpression(`'/_get link #' + self.groupId`, c)
+	return evalCommandExpression(`'/_get link #' + self.groupId`, c)
 }
 
 type APIAddContact struct {
@@ -256,7 +249,7 @@ type APIAddContact struct {
 }
 
 func (c APIAddContact) CommandString() string {
-	return evalJSCommandExpression(`'/_connect ' + self.userId + (self.incognito ? ' incognito=on' : '')`, c)
+	return evalCommandExpression(`'/_connect ' + self.userId + (self.incognito ? ' incognito=on' : '')`, c)
 }
 
 type APIConnectPlan struct {
@@ -265,7 +258,7 @@ type APIConnectPlan struct {
 }
 
 func (c APIConnectPlan) CommandString() string {
-	return evalJSCommandExpression(`'/_connect plan ' + self.userId + ' ' + self.connectionLink`, c)
+	return evalCommandExpression(`'/_connect plan ' + self.userId + ' ' + self.connectionLink`, c)
 }
 
 type APIConnect struct {
@@ -275,7 +268,7 @@ type APIConnect struct {
 }
 
 func (c APIConnect) CommandString() string {
-	return evalJSCommandExpression(`'/_connect ' + self.userId + (self.preparedLink_ ? ' ' + self.preparedLink_.toString() : '')`, c)
+	return evalCommandExpression(`'/_connect ' + self.userId + (self.preparedLink_ ? ' ' + self.preparedLink_.toString() : '')`, c)
 }
 
 type Connect struct {
@@ -284,7 +277,7 @@ type Connect struct {
 }
 
 func (c Connect) CommandString() string {
-	return evalJSCommandExpression(`'/connect' + (self.connLink_ ? ' ' + self.connLink_ : '')`, c)
+	return evalCommandExpression(`'/connect' + (self.connLink_ ? ' ' + self.connLink_ : '')`, c)
 }
 
 type APIAcceptContact struct {
@@ -292,7 +285,7 @@ type APIAcceptContact struct {
 }
 
 func (c APIAcceptContact) CommandString() string {
-	return evalJSCommandExpression(`'/_accept ' + self.contactReqId`, c)
+	return evalCommandExpression(`'/_accept ' + self.contactReqId`, c)
 }
 
 type APIRejectContact struct {
@@ -300,7 +293,7 @@ type APIRejectContact struct {
 }
 
 func (c APIRejectContact) CommandString() string {
-	return evalJSCommandExpression(`'/_reject ' + self.contactReqId`, c)
+	return evalCommandExpression(`'/_reject ' + self.contactReqId`, c)
 }
 
 type APIListContacts struct {
@@ -308,7 +301,7 @@ type APIListContacts struct {
 }
 
 func (c APIListContacts) CommandString() string {
-	return evalJSCommandExpression(`'/_contacts ' + self.userId`, c)
+	return evalCommandExpression(`'/_contacts ' + self.userId`, c)
 }
 
 type APIListGroups struct {
@@ -318,7 +311,7 @@ type APIListGroups struct {
 }
 
 func (c APIListGroups) CommandString() string {
-	return evalJSCommandExpression(`'/_groups ' + self.userId + (self.contactId_ ? ' @' + self.contactId_ : '') + (self.search ? ' ' + self.search : '')`, c)
+	return evalCommandExpression(`'/_groups ' + self.userId + (self.contactId_ ? ' @' + self.contactId_ : '') + (self.search ? ' ' + self.search : '')`, c)
 }
 
 type APIDeleteChat struct {
@@ -327,14 +320,14 @@ type APIDeleteChat struct {
 }
 
 func (c APIDeleteChat) CommandString() string {
-	return evalJSCommandExpression(`'/_delete ' + self.chatRef.toString() + ' ' + self.chatDeleteMode.toString()`, c)
+	return evalCommandExpression(`'/_delete ' + self.chatRef.toString() + ' ' + self.chatDeleteMode.toString()`, c)
 }
 
 type ShowActiveUser struct {
 }
 
 func (c ShowActiveUser) CommandString() string {
-	return evalJSCommandExpression(`'/user'`, c)
+	return evalCommandExpression(`'/user'`, c)
 }
 
 type CreateActiveUser struct {
@@ -342,14 +335,14 @@ type CreateActiveUser struct {
 }
 
 func (c CreateActiveUser) CommandString() string {
-	return evalJSCommandExpression(`'/_create user ' + JSON.stringify(self.newUser)`, c)
+	return evalCommandExpression(`'/_create user ' + JSON.stringify(self.newUser)`, c)
 }
 
 type ListUsers struct {
 }
 
 func (c ListUsers) CommandString() string {
-	return evalJSCommandExpression(`'/users'`, c)
+	return evalCommandExpression(`'/users'`, c)
 }
 
 type APISetActiveUser struct {
@@ -358,7 +351,7 @@ type APISetActiveUser struct {
 }
 
 func (c APISetActiveUser) CommandString() string {
-	return evalJSCommandExpression(`'/_user ' + self.userId + (self.viewPwd ? ' ' + JSON.stringify(self.viewPwd) : '')`, c)
+	return evalCommandExpression(`'/_user ' + self.userId + (self.viewPwd ? ' ' + JSON.stringify(self.viewPwd) : '')`, c)
 }
 
 type APIDeleteUser struct {
@@ -368,7 +361,7 @@ type APIDeleteUser struct {
 }
 
 func (c APIDeleteUser) CommandString() string {
-	return evalJSCommandExpression(`'/_delete user ' + self.userId + ' del_smp=' + (self.delSMPQueues ? 'on' : 'off') + (self.viewPwd ? ' ' + JSON.stringify(self.viewPwd) : '')`, c)
+	return evalCommandExpression(`'/_delete user ' + self.userId + ' del_smp=' + (self.delSMPQueues ? 'on' : 'off') + (self.viewPwd ? ' ' + JSON.stringify(self.viewPwd) : '')`, c)
 }
 
 type APIUpdateProfile struct {
@@ -377,7 +370,7 @@ type APIUpdateProfile struct {
 }
 
 func (c APIUpdateProfile) CommandString() string {
-	return evalJSCommandExpression(`'/_profile ' + self.userId + ' ' + JSON.stringify(self.profile)`, c)
+	return evalCommandExpression(`'/_profile ' + self.userId + ' ' + JSON.stringify(self.profile)`, c)
 }
 
 type APISetContactPrefs struct {
@@ -386,25 +379,5 @@ type APISetContactPrefs struct {
 }
 
 func (c APISetContactPrefs) CommandString() string {
-	return evalJSCommandExpression(`'/_set prefs @' + self.contactId + ' ' + JSON.stringify(self.preferences)`, c)
-}
-
-func evalJSCommandExpression(expr string, self any) string {
-	payload, err := json.Marshal(self)
-	if err != nil {
-		panic(fmt.Sprintf("marshal command for expression eval: %v", err))
-	}
-	var m map[string]any
-	if err := json.Unmarshal(payload, &m); err != nil {
-		panic(fmt.Sprintf("unmarshal command payload for expression eval: %v", err))
-	}
-	vm := goja.New()
-	if err := vm.Set("self", m); err != nil {
-		panic(fmt.Sprintf("set self in expression VM: %v", err))
-	}
-	v, err := vm.RunString(expr)
-	if err != nil {
-		panic(fmt.Sprintf("evaluate command expression: %v", err))
-	}
-	return v.String()
+	return evalCommandExpression(`'/_set prefs @' + self.contactId + ' ' + JSON.stringify(self.preferences)`, c)
 }

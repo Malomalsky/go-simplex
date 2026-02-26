@@ -44,7 +44,7 @@ func TestRenderCommandRequestsGo(t *testing.T) {
 
 	cmds := []TSCommand{
 		{
-			Name: "ShowActiveUser",
+			Name:   "ShowActiveUser",
 			ExprJS: `'/user'`,
 		},
 		{
@@ -67,8 +67,7 @@ func TestRenderCommandRequestsGo(t *testing.T) {
 	if !strings.Contains(code, "type APICreateMyAddress struct") {
 		t.Fatalf("missing APICreateMyAddress struct")
 	}
-	if !strings.Contains(code, "func evalJSCommandExpression") {
+	if !strings.Contains(code, "evalCommandExpression") {
 		t.Fatalf("missing eval helper")
 	}
 }
-

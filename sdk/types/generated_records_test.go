@@ -44,4 +44,3 @@ func TestDecodeEventByType(t *testing.T) {
 		t.Fatalf("unexpected contact in event: %+v", evt.ChatItems[0].ChatInfo.Contact)
 	}
 }
-

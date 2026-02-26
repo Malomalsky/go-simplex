@@ -18,4 +18,3 @@ func Lookup(name string) (Definition, bool) {
 	}
 	return Definition{}, false
 }
-
