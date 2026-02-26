@@ -49,22 +49,28 @@ Create client and bot runtime:
 
 ```go
 ctx := context.Background()
-cli, err := client.NewWebSocket(ctx, "ws://localhost:5225")
-if err != nil {
-    panic(err)
-}
-defer cli.Close(ctx)
-
-rt, err := bot.NewRuntime(cli)
-if err != nil {
-    panic(err)
-}
-
-bot.OnDirectText(rt, func(ctx context.Context, cli *client.Client, msg bot.DirectTextMessage) error {
-    return msg.Reply(ctx, cli, "echo: "+msg.Text)
+router := bot.NewTextRouter()
+_ = router.On("ping", func(ctx context.Context, cli *client.Client, cmd bot.TextCommand) error {
+    return cmd.Message.Reply(ctx, cli, "pong")
 })
 
-if err := rt.Run(ctx); err != nil && !errors.Is(err, context.Canceled) {
+err := bot.RunWebSocketWithReconnect(
+    ctx,
+    "ws://localhost:5225",
+    nil, // ws options
+    []client.Option{
+        client.WithStrictResponses(false), // tolerate new upstream resp.type
+    },
+    func(cli *client.Client) (bot.Runner, error) {
+        rt, err := bot.NewRuntime(cli)
+        if err != nil {
+            return nil, err
+        }
+        bot.OnDirectCommands(rt, router)
+        return rt, nil
+    },
+)
+if err != nil && !errors.Is(err, context.Canceled) {
     panic(err)
 }
 ```
@@ -73,7 +79,9 @@ Bot runtime helpers:
 
 - `bot.OnTyped`
 - `bot.OnDirectText`
+- `bot.NewTextRouter`, `bot.OnDirectCommands`
 - `bot.ExtractDirectTextMessages`
+- `bot.RunWithReconnect`, `bot.RunWebSocketWithReconnect`
 - `rt.Use` middleware chain
 - handler panic recovery with `OnError` reporting
 
