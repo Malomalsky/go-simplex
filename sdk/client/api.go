@@ -396,6 +396,106 @@ func (c *Client) CreateContactInvitation(ctx context.Context, userID int64, inco
 	return "", fmt.Errorf("missing response payload for %s", result.Message.Resp.Type)
 }
 
+func (c *Client) CreateUser(ctx context.Context, newUser map[string]any) (*types.User, error) {
+	result, err := c.SendCreateActiveUser(ctx, command.CreateActiveUser{NewUser: newUser})
+	if err != nil {
+		return nil, err
+	}
+	if result.ActiveUser != nil {
+		return &result.ActiveUser.User, nil
+	}
+	if result.ChatCmdError != nil {
+		return nil, commandErrorFromRaw(result.Message.Resp.Type, result.Message.Resp.Raw)
+	}
+	return nil, fmt.Errorf("missing response payload for %s", result.Message.Resp.Type)
+}
+
+func (c *Client) ListUsers(ctx context.Context) ([]json.RawMessage, error) {
+	result, err := c.SendListUsers(ctx, command.ListUsers{})
+	if err != nil {
+		return nil, err
+	}
+	if result.UsersList != nil {
+		return append([]json.RawMessage(nil), result.UsersList.Users...), nil
+	}
+	if result.ChatCmdError != nil {
+		return nil, commandErrorFromRaw(result.Message.Resp.Type, result.Message.Resp.Raw)
+	}
+	return nil, fmt.Errorf("missing response payload for %s", result.Message.Resp.Type)
+}
+
+func (c *Client) SetActiveUser(ctx context.Context, userID int64, viewPwd *string) (*types.User, error) {
+	result, err := c.SendAPISetActiveUser(ctx, command.APISetActiveUser{
+		UserId:  userID,
+		ViewPwd: viewPwd,
+	})
+	if err != nil {
+		return nil, err
+	}
+	if result.ActiveUser != nil {
+		return &result.ActiveUser.User, nil
+	}
+	if result.ChatCmdError != nil {
+		return nil, commandErrorFromRaw(result.Message.Resp.Type, result.Message.Resp.Raw)
+	}
+	return nil, fmt.Errorf("missing response payload for %s", result.Message.Resp.Type)
+}
+
+func (c *Client) DeleteUser(ctx context.Context, userID int64, delSMPQueues bool, viewPwd *string) error {
+	result, err := c.SendAPIDeleteUser(ctx, command.APIDeleteUser{
+		UserId:       userID,
+		DelSMPQueues: delSMPQueues,
+		ViewPwd:      viewPwd,
+	})
+	if err != nil {
+		return err
+	}
+	if result.CmdOk != nil {
+		return nil
+	}
+	if result.ChatCmdError != nil {
+		return commandErrorFromRaw(result.Message.Resp.Type, result.Message.Resp.Raw)
+	}
+	return fmt.Errorf("missing response payload for %s", result.Message.Resp.Type)
+}
+
+func (c *Client) UpdateProfile(ctx context.Context, userID int64, profile map[string]any) (bool, error) {
+	result, err := c.SendAPIUpdateProfile(ctx, command.APIUpdateProfile{
+		UserId:  userID,
+		Profile: profile,
+	})
+	if err != nil {
+		return false, err
+	}
+	if result.UserProfileUpdated != nil {
+		return true, nil
+	}
+	if result.UserProfileNoChange != nil {
+		return false, nil
+	}
+	if result.ChatCmdError != nil {
+		return false, commandErrorFromRaw(result.Message.Resp.Type, result.Message.Resp.Raw)
+	}
+	return false, fmt.Errorf("missing response payload for %s", result.Message.Resp.Type)
+}
+
+func (c *Client) SetContactPreferences(ctx context.Context, contactID int64, preferences map[string]any) error {
+	result, err := c.SendAPISetContactPrefs(ctx, command.APISetContactPrefs{
+		ContactId:   contactID,
+		Preferences: preferences,
+	})
+	if err != nil {
+		return err
+	}
+	if result.ContactPrefsUpdated != nil {
+		return nil
+	}
+	if result.ChatCmdError != nil {
+		return commandErrorFromRaw(result.Message.Resp.Type, result.Message.Resp.Raw)
+	}
+	return fmt.Errorf("missing response payload for %s", result.Message.Resp.Type)
+}
+
 func (c *Client) AcceptContactRequest(ctx context.Context, contactReqID int64) error {
 	result, err := c.SendAPIAcceptContact(ctx, command.APIAcceptContact{ContactReqId: contactReqID})
 	if err != nil {

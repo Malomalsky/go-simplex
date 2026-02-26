@@ -83,6 +83,12 @@ High-level helper methods currently available on `*client.Client`:
 - `CreateContactInvitation`
 - `AcceptContactRequest`
 - `RejectContactRequest`
+- `CreateUser`
+- `ListUsers`
+- `SetActiveUser`
+- `DeleteUser`
+- `UpdateProfile`
+- `SetContactPreferences`
 - `AddGroupMember`
 - `JoinGroup`
 - `AcceptGroupMember`

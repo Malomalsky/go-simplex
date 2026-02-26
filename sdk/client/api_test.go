@@ -809,6 +809,206 @@ func TestGetGroupLink(t *testing.T) {
 	}
 }
 
+func TestCreateUser(t *testing.T) {
+	t.Parallel()
+
+	transport := newMockTransport()
+	c, err := New(transport)
+	if err != nil {
+		t.Fatalf("new client: %v", err)
+	}
+	defer c.Close(context.Background())
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	done := make(chan struct{})
+	go func() {
+		rawReq := <-transport.writeCh
+		var req struct {
+			CorrID string `json:"corrId"`
+		}
+		_ = json.Unmarshal(rawReq, &req)
+		transport.readCh <- []byte(`{"corrId":"` + req.CorrID + `","resp":{"type":"activeUser","user":{"userId":11,"profile":{"displayName":"bot2"}}}}`)
+		close(done)
+	}()
+
+	user, err := c.CreateUser(ctx, map[string]any{"displayName": "bot2"})
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	<-done
+
+	if user.UserID != 11 || user.Profile.DisplayName != "bot2" {
+		t.Fatalf("unexpected created user: %+v", user)
+	}
+}
+
+func TestListUsers(t *testing.T) {
+	t.Parallel()
+
+	transport := newMockTransport()
+	c, err := New(transport)
+	if err != nil {
+		t.Fatalf("new client: %v", err)
+	}
+	defer c.Close(context.Background())
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	done := make(chan struct{})
+	go func() {
+		rawReq := <-transport.writeCh
+		var req struct {
+			CorrID string `json:"corrId"`
+		}
+		_ = json.Unmarshal(rawReq, &req)
+		transport.readCh <- []byte(`{"corrId":"` + req.CorrID + `","resp":{"type":"usersList","users":[{"userId":1},{"userId":2}]}}`)
+		close(done)
+	}()
+
+	users, err := c.ListUsers(ctx)
+	if err != nil {
+		t.Fatalf("ListUsers: %v", err)
+	}
+	<-done
+
+	if len(users) != 2 {
+		t.Fatalf("unexpected users count: %d", len(users))
+	}
+}
+
+func TestSetActiveUser(t *testing.T) {
+	t.Parallel()
+
+	transport := newMockTransport()
+	c, err := New(transport)
+	if err != nil {
+		t.Fatalf("new client: %v", err)
+	}
+	defer c.Close(context.Background())
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	done := make(chan struct{})
+	go func() {
+		rawReq := <-transport.writeCh
+		var req struct {
+			CorrID string `json:"corrId"`
+		}
+		_ = json.Unmarshal(rawReq, &req)
+		transport.readCh <- []byte(`{"corrId":"` + req.CorrID + `","resp":{"type":"activeUser","user":{"userId":2,"profile":{"displayName":"active"}}}}`)
+		close(done)
+	}()
+
+	user, err := c.SetActiveUser(ctx, 2, nil)
+	if err != nil {
+		t.Fatalf("SetActiveUser: %v", err)
+	}
+	<-done
+
+	if user.UserID != 2 {
+		t.Fatalf("unexpected active user id: %d", user.UserID)
+	}
+}
+
+func TestDeleteUser(t *testing.T) {
+	t.Parallel()
+
+	transport := newMockTransport()
+	c, err := New(transport)
+	if err != nil {
+		t.Fatalf("new client: %v", err)
+	}
+	defer c.Close(context.Background())
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	done := make(chan struct{})
+	go func() {
+		rawReq := <-transport.writeCh
+		var req struct {
+			CorrID string `json:"corrId"`
+		}
+		_ = json.Unmarshal(rawReq, &req)
+		transport.readCh <- []byte(`{"corrId":"` + req.CorrID + `","resp":{"type":"cmdOk"}}`)
+		close(done)
+	}()
+
+	if err := c.DeleteUser(ctx, 2, false, nil); err != nil {
+		t.Fatalf("DeleteUser: %v", err)
+	}
+	<-done
+}
+
+func TestUpdateProfile(t *testing.T) {
+	t.Parallel()
+
+	transport := newMockTransport()
+	c, err := New(transport)
+	if err != nil {
+		t.Fatalf("new client: %v", err)
+	}
+	defer c.Close(context.Background())
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	done := make(chan struct{})
+	go func() {
+		rawReq := <-transport.writeCh
+		var req struct {
+			CorrID string `json:"corrId"`
+		}
+		_ = json.Unmarshal(rawReq, &req)
+		transport.readCh <- []byte(`{"corrId":"` + req.CorrID + `","resp":{"type":"userProfileUpdated","user":{"userId":1},"fromProfile":{},"toProfile":{},"updateSummary":{}}}`)
+		close(done)
+	}()
+
+	changed, err := c.UpdateProfile(ctx, 1, map[string]any{"displayName": "new"})
+	if err != nil {
+		t.Fatalf("UpdateProfile: %v", err)
+	}
+	<-done
+
+	if !changed {
+		t.Fatalf("expected changed=true")
+	}
+}
+
+func TestSetContactPreferences(t *testing.T) {
+	t.Parallel()
+
+	transport := newMockTransport()
+	c, err := New(transport)
+	if err != nil {
+		t.Fatalf("new client: %v", err)
+	}
+	defer c.Close(context.Background())
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	done := make(chan struct{})
+	go func() {
+		rawReq := <-transport.writeCh
+		var req struct {
+			CorrID string `json:"corrId"`
+		}
+		_ = json.Unmarshal(rawReq, &req)
+		transport.readCh <- []byte(`{"corrId":"` + req.CorrID + `","resp":{"type":"contactPrefsUpdated","user":{"userId":1},"fromContact":{"contactId":7},"toContact":{"contactId":7}}}`)
+		close(done)
+	}()
+
+	if err := c.SetContactPreferences(ctx, 7, map[string]any{"timedMessages": false}); err != nil {
+		t.Fatalf("SetContactPreferences: %v", err)
+	}
+	<-done
+}
+
 func TestSendTextMessage(t *testing.T) {
 	t.Parallel()
 
