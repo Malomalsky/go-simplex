@@ -16,8 +16,10 @@ func main() {
 		pkgName    string
 		eventsPath string
 		respPath   string
+		typesPath  string
 		tagsOut    string
 		recordsOut string
+		sharedOut  string
 		cmdTSPath  string
 		reqOut     string
 		sendersOut string
@@ -28,20 +30,22 @@ func main() {
 	flag.StringVar(&pkgName, "package", "command", "package name for generated file")
 	flag.StringVar(&eventsPath, "events", "spec/upstream/events.ts", "path to upstream events.ts")
 	flag.StringVar(&respPath, "responses", "spec/upstream/responses.ts", "path to upstream responses.ts")
+	flag.StringVar(&typesPath, "types", "spec/upstream/types.ts", "path to upstream types.ts")
 	flag.StringVar(&tagsOut, "out-tags", "sdk/types/generated_tags.go", "generated event/response tag constants file")
 	flag.StringVar(&recordsOut, "out-records", "sdk/types/generated_records.go", "generated event/response records file")
+	flag.StringVar(&sharedOut, "out-shared", "sdk/types/generated_types.go", "generated shared api types file")
 	flag.StringVar(&cmdTSPath, "commands-ts", "spec/upstream/commands.ts", "path to upstream commands.ts")
 	flag.StringVar(&reqOut, "out-requests", "sdk/command/generated_requests.go", "generated command request structs file")
 	flag.StringVar(&sendersOut, "out-senders", "sdk/client/generated_senders.go", "generated typed client senders file")
 	flag.Parse()
 
-	if err := run(inputPath, outputPath, pkgName, eventsPath, respPath, tagsOut, recordsOut, cmdTSPath, reqOut, sendersOut); err != nil {
+	if err := run(inputPath, outputPath, pkgName, eventsPath, respPath, typesPath, tagsOut, recordsOut, sharedOut, cmdTSPath, reqOut, sendersOut); err != nil {
 		fmt.Fprintf(os.Stderr, "simplexgen: %v\n", err)
 		os.Exit(1)
 	}
 }
 
-func run(inputPath, outputPath, pkgName, eventsPath, respPath, tagsOut, recordsOut, cmdTSPath, reqOut, sendersOut string) error {
+func run(inputPath, outputPath, pkgName, eventsPath, respPath, typesPath, tagsOut, recordsOut, sharedOut, cmdTSPath, reqOut, sendersOut string) error {
 	in, err := os.Open(inputPath)
 	if err != nil {
 		return fmt.Errorf("open input: %w", err)
@@ -93,7 +97,26 @@ func run(inputPath, outputPath, pkgName, eventsPath, respPath, tagsOut, recordsO
 	if err != nil {
 		return fmt.Errorf("parse event interfaces: %w", err)
 	}
-	records, err := spec.RenderTypesRecordsGo("types", responseIfaces, eventIfaces)
+	topLevelTypes, err := parseTopLevelTSInterfaces(typesPath)
+	if err != nil {
+		return fmt.Errorf("parse top-level shared types interfaces: %w", err)
+	}
+	seedRefs := append(spec.CollectTRefs(responseIfaces), spec.CollectTRefs(eventIfaces)...)
+	sharedNames := spec.ExpandTypeClosure(topLevelTypes, seedRefs)
+	sharedNames = spec.FilterTypeNames(sharedNames, spec.BuiltinTypeNameSet())
+
+	shared, err := spec.RenderTypesSharedGo("types", topLevelTypes, sharedNames)
+	if err != nil {
+		return fmt.Errorf("render shared types file: %w", err)
+	}
+	if err := os.MkdirAll(filepath.Dir(sharedOut), 0o755); err != nil {
+		return fmt.Errorf("create shared types output directory: %w", err)
+	}
+	if err := os.WriteFile(sharedOut, shared, 0o644); err != nil {
+		return fmt.Errorf("write shared types output file: %w", err)
+	}
+
+	records, err := spec.RenderTypesRecordsGo("types", responseIfaces, eventIfaces, sharedNames...)
 	if err != nil {
 		return fmt.Errorf("render records file: %w", err)
 	}
@@ -154,4 +177,13 @@ func parseTSInterfaces(path string) ([]spec.TSInterface, error) {
 	}
 	defer f.Close()
 	return spec.ParseTSInterfaces(f)
+}
+
+func parseTopLevelTSInterfaces(path string) ([]spec.TSInterface, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+	return spec.ParseTopLevelTSInterfaces(f)
 }

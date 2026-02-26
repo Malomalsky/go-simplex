@@ -21,11 +21,20 @@ type TSInterface struct {
 }
 
 var (
-	tsIfaceStartRe = regexp.MustCompile(`^\s*export interface ([A-Za-z0-9_]+)(?: extends Interface)? \{$`)
+	tsIfaceStartRe = regexp.MustCompile(`^\s*export interface ([A-Za-z0-9_]+)(?: extends [^{]+)? \{$`)
+	tsTopIfaceRe   = regexp.MustCompile(`^export interface ([A-Za-z0-9_]+)(?: extends [^{]+)? \{$`)
 	tsFieldRe      = regexp.MustCompile(`^\s*([A-Za-z0-9_]+)(\?)?:\s*([^/]+?)(?:\s*//\s*(.+))?\s*$`)
 )
 
 func ParseTSInterfaces(r io.Reader) ([]TSInterface, error) {
+	return parseTSInterfacesWithStartRe(r, tsIfaceStartRe)
+}
+
+func ParseTopLevelTSInterfaces(r io.Reader) ([]TSInterface, error) {
+	return parseTSInterfacesWithStartRe(r, tsTopIfaceRe)
+}
+
+func parseTSInterfacesWithStartRe(r io.Reader, startRe *regexp.Regexp) ([]TSInterface, error) {
 	lines, err := readTSLines(r)
 	if err != nil {
 		return nil, err
@@ -33,7 +42,7 @@ func ParseTSInterfaces(r io.Reader) ([]TSInterface, error) {
 
 	out := make([]TSInterface, 0, 64)
 	for i := 0; i < len(lines); i++ {
-		start := tsIfaceStartRe.FindStringSubmatch(lines[i])
+		start := startRe.FindStringSubmatch(lines[i])
 		if len(start) != 2 {
 			continue
 		}

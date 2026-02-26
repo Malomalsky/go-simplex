@@ -25,10 +25,10 @@ type ResponseChatItemNotChanged struct {
 }
 
 type ResponseChatItemReaction struct {
-	Type     ResponseType    `json:"type"`
-	User     User            `json:"user"`
-	Added    bool            `json:"added"`
-	Reaction json.RawMessage `json:"reaction"`
+	Type     ResponseType `json:"type"`
+	User     User         `json:"user"`
+	Added    bool         `json:"added"`
+	Reaction ACIReaction  `json:"reaction"`
 }
 
 type ResponseChatItemUpdated struct {
@@ -38,11 +38,11 @@ type ResponseChatItemUpdated struct {
 }
 
 type ResponseChatItemsDeleted struct {
-	Type              ResponseType      `json:"type"`
-	User              User              `json:"user"`
-	ChatItemDeletions []json.RawMessage `json:"chatItemDeletions"`
-	ByUser            bool              `json:"byUser"`
-	Timed             bool              `json:"timed"`
+	Type              ResponseType       `json:"type"`
+	User              User               `json:"user"`
+	ChatItemDeletions []ChatItemDeletion `json:"chatItemDeletions"`
+	ByUser            bool               `json:"byUser"`
+	Timed             bool               `json:"timed"`
 }
 
 type ResponseCmdOk struct {
@@ -69,9 +69,9 @@ type ResponseContactAlreadyExists struct {
 }
 
 type ResponseContactConnectionDeleted struct {
-	Type       ResponseType    `json:"type"`
-	User       User            `json:"user"`
-	Connection json.RawMessage `json:"connection"`
+	Type       ResponseType             `json:"type"`
+	User       User                     `json:"user"`
+	Connection PendingContactConnection `json:"connection"`
 }
 
 type ResponseContactDeleted struct {
@@ -88,10 +88,10 @@ type ResponseContactPrefsUpdated struct {
 }
 
 type ResponseContactRequestRejected struct {
-	Type           ResponseType    `json:"type"`
-	User           User            `json:"user"`
-	ContactRequest json.RawMessage `json:"contactRequest"`
-	Contact_       *Contact        `json:"contact_"`
+	Type           ResponseType       `json:"type"`
+	User           User               `json:"user"`
+	ContactRequest UserContactRequest `json:"contactRequest"`
+	Contact_       *Contact           `json:"contact_"`
 }
 
 type ResponseContactsList struct {
@@ -101,91 +101,91 @@ type ResponseContactsList struct {
 }
 
 type ResponseGroupDeletedUser struct {
-	Type      ResponseType    `json:"type"`
-	User      User            `json:"user"`
-	GroupInfo json.RawMessage `json:"groupInfo"`
+	Type      ResponseType `json:"type"`
+	User      User         `json:"user"`
+	GroupInfo GroupInfo    `json:"groupInfo"`
 }
 
 type ResponseGroupLink struct {
-	Type      ResponseType    `json:"type"`
-	User      User            `json:"user"`
-	GroupInfo json.RawMessage `json:"groupInfo"`
-	GroupLink json.RawMessage `json:"groupLink"`
+	Type      ResponseType `json:"type"`
+	User      User         `json:"user"`
+	GroupInfo GroupInfo    `json:"groupInfo"`
+	GroupLink GroupLink    `json:"groupLink"`
 }
 
 type ResponseGroupLinkCreated struct {
-	Type      ResponseType    `json:"type"`
-	User      User            `json:"user"`
-	GroupInfo json.RawMessage `json:"groupInfo"`
-	GroupLink json.RawMessage `json:"groupLink"`
+	Type      ResponseType `json:"type"`
+	User      User         `json:"user"`
+	GroupInfo GroupInfo    `json:"groupInfo"`
+	GroupLink GroupLink    `json:"groupLink"`
 }
 
 type ResponseGroupLinkDeleted struct {
-	Type      ResponseType    `json:"type"`
-	User      User            `json:"user"`
-	GroupInfo json.RawMessage `json:"groupInfo"`
+	Type      ResponseType `json:"type"`
+	User      User         `json:"user"`
+	GroupInfo GroupInfo    `json:"groupInfo"`
 }
 
 type ResponseGroupCreated struct {
-	Type      ResponseType    `json:"type"`
-	User      User            `json:"user"`
-	GroupInfo json.RawMessage `json:"groupInfo"`
+	Type      ResponseType `json:"type"`
+	User      User         `json:"user"`
+	GroupInfo GroupInfo    `json:"groupInfo"`
 }
 
 type ResponseGroupMembers struct {
-	Type  ResponseType    `json:"type"`
-	User  User            `json:"user"`
-	Group json.RawMessage `json:"group"`
+	Type  ResponseType `json:"type"`
+	User  User         `json:"user"`
+	Group Group        `json:"group"`
 }
 
 type ResponseGroupUpdated struct {
-	Type      ResponseType    `json:"type"`
-	User      User            `json:"user"`
-	FromGroup json.RawMessage `json:"fromGroup"`
-	ToGroup   json.RawMessage `json:"toGroup"`
-	Member_   json.RawMessage `json:"member_"`
+	Type      ResponseType `json:"type"`
+	User      User         `json:"user"`
+	FromGroup GroupInfo    `json:"fromGroup"`
+	ToGroup   GroupInfo    `json:"toGroup"`
+	Member_   *GroupMember `json:"member_"`
 }
 
 type ResponseGroupsList struct {
-	Type   ResponseType      `json:"type"`
-	User   User              `json:"user"`
-	Groups []json.RawMessage `json:"groups"`
+	Type   ResponseType       `json:"type"`
+	User   User               `json:"user"`
+	Groups []GroupInfoSummary `json:"groups"`
 }
 
 type ResponseInvitation struct {
-	Type               ResponseType    `json:"type"`
-	User               User            `json:"user"`
-	ConnLinkInvitation CreatedConnLink `json:"connLinkInvitation"`
-	Connection         json.RawMessage `json:"connection"`
+	Type               ResponseType             `json:"type"`
+	User               User                     `json:"user"`
+	ConnLinkInvitation CreatedConnLink          `json:"connLinkInvitation"`
+	Connection         PendingContactConnection `json:"connection"`
 }
 
 type ResponseLeftMemberUser struct {
-	Type      ResponseType    `json:"type"`
-	User      User            `json:"user"`
-	GroupInfo json.RawMessage `json:"groupInfo"`
+	Type      ResponseType `json:"type"`
+	User      User         `json:"user"`
+	GroupInfo GroupInfo    `json:"groupInfo"`
 }
 
 type ResponseMemberAccepted struct {
-	Type      ResponseType    `json:"type"`
-	User      User            `json:"user"`
-	GroupInfo json.RawMessage `json:"groupInfo"`
-	Member    json.RawMessage `json:"member"`
+	Type      ResponseType `json:"type"`
+	User      User         `json:"user"`
+	GroupInfo GroupInfo    `json:"groupInfo"`
+	Member    GroupMember  `json:"member"`
 }
 
 type ResponseMembersBlockedForAllUser struct {
-	Type      ResponseType      `json:"type"`
-	User      User              `json:"user"`
-	GroupInfo json.RawMessage   `json:"groupInfo"`
-	Members   []json.RawMessage `json:"members"`
-	Blocked   bool              `json:"blocked"`
+	Type      ResponseType  `json:"type"`
+	User      User          `json:"user"`
+	GroupInfo GroupInfo     `json:"groupInfo"`
+	Members   []GroupMember `json:"members"`
+	Blocked   bool          `json:"blocked"`
 }
 
 type ResponseMembersRoleUser struct {
-	Type      ResponseType      `json:"type"`
-	User      User              `json:"user"`
-	GroupInfo json.RawMessage   `json:"groupInfo"`
-	Members   []json.RawMessage `json:"members"`
-	ToRole    json.RawMessage   `json:"toRole"`
+	Type      ResponseType    `json:"type"`
+	User      User            `json:"user"`
+	GroupInfo GroupInfo       `json:"groupInfo"`
+	Members   []GroupMember   `json:"members"`
+	ToRole    json.RawMessage `json:"toRole"`
 }
 
 type ResponseNewChatItems struct {
@@ -203,51 +203,51 @@ type ResponseRcvFileAccepted struct {
 type ResponseRcvFileAcceptedSndCancelled struct {
 	Type            ResponseType    `json:"type"`
 	User            User            `json:"user"`
-	RcvFileTransfer json.RawMessage `json:"rcvFileTransfer"`
+	RcvFileTransfer RcvFileTransfer `json:"rcvFileTransfer"`
 }
 
 type ResponseRcvFileCancelled struct {
 	Type            ResponseType    `json:"type"`
 	User            User            `json:"user"`
 	ChatItem_       *AChatItem      `json:"chatItem_"`
-	RcvFileTransfer json.RawMessage `json:"rcvFileTransfer"`
+	RcvFileTransfer RcvFileTransfer `json:"rcvFileTransfer"`
 }
 
 type ResponseSentConfirmation struct {
-	Type              ResponseType    `json:"type"`
-	User              User            `json:"user"`
-	Connection        json.RawMessage `json:"connection"`
-	CustomUserProfile json.RawMessage `json:"customUserProfile"`
+	Type              ResponseType             `json:"type"`
+	User              User                     `json:"user"`
+	Connection        PendingContactConnection `json:"connection"`
+	CustomUserProfile *Profile                 `json:"customUserProfile"`
 }
 
 type ResponseSentGroupInvitation struct {
-	Type      ResponseType    `json:"type"`
-	User      User            `json:"user"`
-	GroupInfo json.RawMessage `json:"groupInfo"`
-	Contact   Contact         `json:"contact"`
-	Member    json.RawMessage `json:"member"`
+	Type      ResponseType `json:"type"`
+	User      User         `json:"user"`
+	GroupInfo GroupInfo    `json:"groupInfo"`
+	Contact   Contact      `json:"contact"`
+	Member    GroupMember  `json:"member"`
 }
 
 type ResponseSentInvitation struct {
-	Type              ResponseType    `json:"type"`
-	User              User            `json:"user"`
-	Connection        json.RawMessage `json:"connection"`
-	CustomUserProfile json.RawMessage `json:"customUserProfile"`
+	Type              ResponseType             `json:"type"`
+	User              User                     `json:"user"`
+	Connection        PendingContactConnection `json:"connection"`
+	CustomUserProfile *Profile                 `json:"customUserProfile"`
 }
 
 type ResponseSndFileCancelled struct {
 	Type             ResponseType      `json:"type"`
 	User             User              `json:"user"`
 	ChatItem_        *AChatItem        `json:"chatItem_"`
-	FileTransferMeta json.RawMessage   `json:"fileTransferMeta"`
-	SndFileTransfers []json.RawMessage `json:"sndFileTransfers"`
+	FileTransferMeta FileTransferMeta  `json:"fileTransferMeta"`
+	SndFileTransfers []SndFileTransfer `json:"sndFileTransfers"`
 }
 
 type ResponseUserAcceptedGroupSent struct {
-	Type        ResponseType    `json:"type"`
-	User        User            `json:"user"`
-	GroupInfo   json.RawMessage `json:"groupInfo"`
-	HostContact *Contact        `json:"hostContact"`
+	Type        ResponseType `json:"type"`
+	User        User         `json:"user"`
+	GroupInfo   GroupInfo    `json:"groupInfo"`
+	HostContact *Contact     `json:"hostContact"`
 }
 
 type ResponseUserContactLink struct {
@@ -274,19 +274,19 @@ type ResponseUserContactLinkUpdated struct {
 }
 
 type ResponseUserDeletedMembers struct {
-	Type         ResponseType      `json:"type"`
-	User         User              `json:"user"`
-	GroupInfo    json.RawMessage   `json:"groupInfo"`
-	Members      []json.RawMessage `json:"members"`
-	WithMessages bool              `json:"withMessages"`
+	Type         ResponseType  `json:"type"`
+	User         User          `json:"user"`
+	GroupInfo    GroupInfo     `json:"groupInfo"`
+	Members      []GroupMember `json:"members"`
+	WithMessages bool          `json:"withMessages"`
 }
 
 type ResponseUserProfileUpdated struct {
-	Type          ResponseType    `json:"type"`
-	User          User            `json:"user"`
-	FromProfile   json.RawMessage `json:"fromProfile"`
-	ToProfile     json.RawMessage `json:"toProfile"`
-	UpdateSummary json.RawMessage `json:"updateSummary"`
+	Type          ResponseType             `json:"type"`
+	User          User                     `json:"user"`
+	FromProfile   Profile                  `json:"fromProfile"`
+	ToProfile     Profile                  `json:"toProfile"`
+	UpdateSummary UserProfileUpdateSummary `json:"updateSummary"`
 }
 
 type ResponseUserProfileNoChange struct {
@@ -295,15 +295,15 @@ type ResponseUserProfileNoChange struct {
 }
 
 type ResponseUsersList struct {
-	Type  ResponseType      `json:"type"`
-	Users []json.RawMessage `json:"users"`
+	Type  ResponseType `json:"type"`
+	Users []UserInfo   `json:"users"`
 }
 
 type EventContactConnected struct {
-	Type              EventType       `json:"type"`
-	User              User            `json:"user"`
-	Contact           Contact         `json:"contact"`
-	UserCustomProfile json.RawMessage `json:"userCustomProfile"`
+	Type              EventType `json:"type"`
+	User              User      `json:"user"`
+	Contact           Contact   `json:"contact"`
+	UserCustomProfile *Profile  `json:"userCustomProfile"`
 }
 
 type EventContactUpdated struct {
@@ -320,18 +320,18 @@ type EventContactDeletedByContact struct {
 }
 
 type EventReceivedContactRequest struct {
-	Type           EventType       `json:"type"`
-	User           User            `json:"user"`
-	ContactRequest json.RawMessage `json:"contactRequest"`
-	Chat_          json.RawMessage `json:"chat_"`
+	Type           EventType          `json:"type"`
+	User           User               `json:"user"`
+	ContactRequest UserContactRequest `json:"contactRequest"`
+	Chat_          *AChat             `json:"chat_"`
 }
 
 type EventNewMemberContactReceivedInv struct {
-	Type      EventType       `json:"type"`
-	User      User            `json:"user"`
-	Contact   Contact         `json:"contact"`
-	GroupInfo json.RawMessage `json:"groupInfo"`
-	Member    json.RawMessage `json:"member"`
+	Type      EventType   `json:"type"`
+	User      User        `json:"user"`
+	Contact   Contact     `json:"contact"`
+	GroupInfo GroupInfo   `json:"groupInfo"`
+	Member    GroupMember `json:"member"`
 }
 
 type EventContactSndReady struct {
@@ -347,18 +347,18 @@ type EventNewChatItems struct {
 }
 
 type EventChatItemReaction struct {
-	Type     EventType       `json:"type"`
-	User     User            `json:"user"`
-	Added    bool            `json:"added"`
-	Reaction json.RawMessage `json:"reaction"`
+	Type     EventType   `json:"type"`
+	User     User        `json:"user"`
+	Added    bool        `json:"added"`
+	Reaction ACIReaction `json:"reaction"`
 }
 
 type EventChatItemsDeleted struct {
-	Type              EventType         `json:"type"`
-	User              User              `json:"user"`
-	ChatItemDeletions []json.RawMessage `json:"chatItemDeletions"`
-	ByUser            bool              `json:"byUser"`
-	Timed             bool              `json:"timed"`
+	Type              EventType          `json:"type"`
+	User              User               `json:"user"`
+	ChatItemDeletions []ChatItemDeletion `json:"chatItemDeletions"`
+	ByUser            bool               `json:"byUser"`
+	Timed             bool               `json:"timed"`
 }
 
 type EventChatItemUpdated struct {
@@ -368,12 +368,12 @@ type EventChatItemUpdated struct {
 }
 
 type EventGroupChatItemsDeleted struct {
-	Type        EventType       `json:"type"`
-	User        User            `json:"user"`
-	GroupInfo   json.RawMessage `json:"groupInfo"`
-	ChatItemIDs []int64         `json:"chatItemIDs"`
-	ByUser      bool            `json:"byUser"`
-	Member_     json.RawMessage `json:"member_"`
+	Type        EventType    `json:"type"`
+	User        User         `json:"user"`
+	GroupInfo   GroupInfo    `json:"groupInfo"`
+	ChatItemIDs []int64      `json:"chatItemIDs"`
+	ByUser      bool         `json:"byUser"`
+	Member_     *GroupMember `json:"member_"`
 }
 
 type EventChatItemsStatusesUpdated struct {
@@ -385,114 +385,114 @@ type EventChatItemsStatusesUpdated struct {
 type EventReceivedGroupInvitation struct {
 	Type           EventType       `json:"type"`
 	User           User            `json:"user"`
-	GroupInfo      json.RawMessage `json:"groupInfo"`
+	GroupInfo      GroupInfo       `json:"groupInfo"`
 	Contact        Contact         `json:"contact"`
 	FromMemberRole json.RawMessage `json:"fromMemberRole"`
 	MemberRole     json.RawMessage `json:"memberRole"`
 }
 
 type EventUserJoinedGroup struct {
-	Type       EventType       `json:"type"`
-	User       User            `json:"user"`
-	GroupInfo  json.RawMessage `json:"groupInfo"`
-	HostMember json.RawMessage `json:"hostMember"`
+	Type       EventType   `json:"type"`
+	User       User        `json:"user"`
+	GroupInfo  GroupInfo   `json:"groupInfo"`
+	HostMember GroupMember `json:"hostMember"`
 }
 
 type EventGroupUpdated struct {
-	Type      EventType       `json:"type"`
-	User      User            `json:"user"`
-	FromGroup json.RawMessage `json:"fromGroup"`
-	ToGroup   json.RawMessage `json:"toGroup"`
-	Member_   json.RawMessage `json:"member_"`
+	Type      EventType    `json:"type"`
+	User      User         `json:"user"`
+	FromGroup GroupInfo    `json:"fromGroup"`
+	ToGroup   GroupInfo    `json:"toGroup"`
+	Member_   *GroupMember `json:"member_"`
 }
 
 type EventJoinedGroupMember struct {
-	Type      EventType       `json:"type"`
-	User      User            `json:"user"`
-	GroupInfo json.RawMessage `json:"groupInfo"`
-	Member    json.RawMessage `json:"member"`
+	Type      EventType   `json:"type"`
+	User      User        `json:"user"`
+	GroupInfo GroupInfo   `json:"groupInfo"`
+	Member    GroupMember `json:"member"`
 }
 
 type EventMemberRole struct {
 	Type      EventType       `json:"type"`
 	User      User            `json:"user"`
-	GroupInfo json.RawMessage `json:"groupInfo"`
-	ByMember  json.RawMessage `json:"byMember"`
-	Member    json.RawMessage `json:"member"`
+	GroupInfo GroupInfo       `json:"groupInfo"`
+	ByMember  GroupMember     `json:"byMember"`
+	Member    GroupMember     `json:"member"`
 	FromRole  json.RawMessage `json:"fromRole"`
 	ToRole    json.RawMessage `json:"toRole"`
 }
 
 type EventDeletedMember struct {
-	Type          EventType       `json:"type"`
-	User          User            `json:"user"`
-	GroupInfo     json.RawMessage `json:"groupInfo"`
-	ByMember      json.RawMessage `json:"byMember"`
-	DeletedMember json.RawMessage `json:"deletedMember"`
-	WithMessages  bool            `json:"withMessages"`
+	Type          EventType   `json:"type"`
+	User          User        `json:"user"`
+	GroupInfo     GroupInfo   `json:"groupInfo"`
+	ByMember      GroupMember `json:"byMember"`
+	DeletedMember GroupMember `json:"deletedMember"`
+	WithMessages  bool        `json:"withMessages"`
 }
 
 type EventLeftMember struct {
-	Type      EventType       `json:"type"`
-	User      User            `json:"user"`
-	GroupInfo json.RawMessage `json:"groupInfo"`
-	Member    json.RawMessage `json:"member"`
+	Type      EventType   `json:"type"`
+	User      User        `json:"user"`
+	GroupInfo GroupInfo   `json:"groupInfo"`
+	Member    GroupMember `json:"member"`
 }
 
 type EventDeletedMemberUser struct {
-	Type         EventType       `json:"type"`
-	User         User            `json:"user"`
-	GroupInfo    json.RawMessage `json:"groupInfo"`
-	Member       json.RawMessage `json:"member"`
-	WithMessages bool            `json:"withMessages"`
+	Type         EventType   `json:"type"`
+	User         User        `json:"user"`
+	GroupInfo    GroupInfo   `json:"groupInfo"`
+	Member       GroupMember `json:"member"`
+	WithMessages bool        `json:"withMessages"`
 }
 
 type EventGroupDeleted struct {
-	Type      EventType       `json:"type"`
-	User      User            `json:"user"`
-	GroupInfo json.RawMessage `json:"groupInfo"`
-	Member    json.RawMessage `json:"member"`
+	Type      EventType   `json:"type"`
+	User      User        `json:"user"`
+	GroupInfo GroupInfo   `json:"groupInfo"`
+	Member    GroupMember `json:"member"`
 }
 
 type EventConnectedToGroupMember struct {
-	Type          EventType       `json:"type"`
-	User          User            `json:"user"`
-	GroupInfo     json.RawMessage `json:"groupInfo"`
-	Member        json.RawMessage `json:"member"`
-	MemberContact *Contact        `json:"memberContact"`
+	Type          EventType   `json:"type"`
+	User          User        `json:"user"`
+	GroupInfo     GroupInfo   `json:"groupInfo"`
+	Member        GroupMember `json:"member"`
+	MemberContact *Contact    `json:"memberContact"`
 }
 
 type EventMemberAcceptedByOther struct {
-	Type            EventType       `json:"type"`
-	User            User            `json:"user"`
-	GroupInfo       json.RawMessage `json:"groupInfo"`
-	AcceptingMember json.RawMessage `json:"acceptingMember"`
-	Member          json.RawMessage `json:"member"`
+	Type            EventType   `json:"type"`
+	User            User        `json:"user"`
+	GroupInfo       GroupInfo   `json:"groupInfo"`
+	AcceptingMember GroupMember `json:"acceptingMember"`
+	Member          GroupMember `json:"member"`
 }
 
 type EventMemberBlockedForAll struct {
-	Type      EventType       `json:"type"`
-	User      User            `json:"user"`
-	GroupInfo json.RawMessage `json:"groupInfo"`
-	ByMember  json.RawMessage `json:"byMember"`
-	Member    json.RawMessage `json:"member"`
-	Blocked   bool            `json:"blocked"`
+	Type      EventType   `json:"type"`
+	User      User        `json:"user"`
+	GroupInfo GroupInfo   `json:"groupInfo"`
+	ByMember  GroupMember `json:"byMember"`
+	Member    GroupMember `json:"member"`
+	Blocked   bool        `json:"blocked"`
 }
 
 type EventGroupMemberUpdated struct {
-	Type       EventType       `json:"type"`
-	User       User            `json:"user"`
-	GroupInfo  json.RawMessage `json:"groupInfo"`
-	FromMember json.RawMessage `json:"fromMember"`
-	ToMember   json.RawMessage `json:"toMember"`
+	Type       EventType   `json:"type"`
+	User       User        `json:"user"`
+	GroupInfo  GroupInfo   `json:"groupInfo"`
+	FromMember GroupMember `json:"fromMember"`
+	ToMember   GroupMember `json:"toMember"`
 }
 
 type EventRcvFileDescrReady struct {
 	Type            EventType       `json:"type"`
 	User            User            `json:"user"`
 	ChatItem        AChatItem       `json:"chatItem"`
-	RcvFileTransfer json.RawMessage `json:"rcvFileTransfer"`
-	RcvFileDescr    json.RawMessage `json:"rcvFileDescr"`
+	RcvFileTransfer RcvFileTransfer `json:"rcvFileTransfer"`
+	RcvFileDescr    RcvFileDescr    `json:"rcvFileDescr"`
 }
 
 type EventRcvFileComplete struct {
@@ -502,10 +502,10 @@ type EventRcvFileComplete struct {
 }
 
 type EventSndFileCompleteXFTP struct {
-	Type             EventType       `json:"type"`
-	User             User            `json:"user"`
-	ChatItem         AChatItem       `json:"chatItem"`
-	FileTransferMeta json.RawMessage `json:"fileTransferMeta"`
+	Type             EventType        `json:"type"`
+	User             User             `json:"user"`
+	ChatItem         AChatItem        `json:"chatItem"`
+	FileTransferMeta FileTransferMeta `json:"fileTransferMeta"`
 }
 
 type EventRcvFileStart struct {
@@ -518,7 +518,7 @@ type EventRcvFileSndCancelled struct {
 	Type            EventType       `json:"type"`
 	User            User            `json:"user"`
 	ChatItem        AChatItem       `json:"chatItem"`
-	RcvFileTransfer json.RawMessage `json:"rcvFileTransfer"`
+	RcvFileTransfer RcvFileTransfer `json:"rcvFileTransfer"`
 }
 
 type EventRcvFileAccepted struct {
@@ -532,7 +532,7 @@ type EventRcvFileError struct {
 	User            User            `json:"user"`
 	ChatItem_       *AChatItem      `json:"chatItem_"`
 	AgentError      json.RawMessage `json:"agentError"`
-	RcvFileTransfer json.RawMessage `json:"rcvFileTransfer"`
+	RcvFileTransfer RcvFileTransfer `json:"rcvFileTransfer"`
 }
 
 type EventRcvFileWarning struct {
@@ -540,23 +540,23 @@ type EventRcvFileWarning struct {
 	User            User            `json:"user"`
 	ChatItem_       *AChatItem      `json:"chatItem_"`
 	AgentError      json.RawMessage `json:"agentError"`
-	RcvFileTransfer json.RawMessage `json:"rcvFileTransfer"`
+	RcvFileTransfer RcvFileTransfer `json:"rcvFileTransfer"`
 }
 
 type EventSndFileError struct {
-	Type             EventType       `json:"type"`
-	User             User            `json:"user"`
-	ChatItem_        *AChatItem      `json:"chatItem_"`
-	FileTransferMeta json.RawMessage `json:"fileTransferMeta"`
-	ErrorMessage     string          `json:"errorMessage"`
+	Type             EventType        `json:"type"`
+	User             User             `json:"user"`
+	ChatItem_        *AChatItem       `json:"chatItem_"`
+	FileTransferMeta FileTransferMeta `json:"fileTransferMeta"`
+	ErrorMessage     string           `json:"errorMessage"`
 }
 
 type EventSndFileWarning struct {
-	Type             EventType       `json:"type"`
-	User             User            `json:"user"`
-	ChatItem_        *AChatItem      `json:"chatItem_"`
-	FileTransferMeta json.RawMessage `json:"fileTransferMeta"`
-	ErrorMessage     string          `json:"errorMessage"`
+	Type             EventType        `json:"type"`
+	User             User             `json:"user"`
+	ChatItem_        *AChatItem       `json:"chatItem_"`
+	FileTransferMeta FileTransferMeta `json:"fileTransferMeta"`
+	ErrorMessage     string           `json:"errorMessage"`
 }
 
 type EventAcceptingContactRequest struct {
@@ -566,9 +566,9 @@ type EventAcceptingContactRequest struct {
 }
 
 type EventAcceptingBusinessRequest struct {
-	Type      EventType       `json:"type"`
-	User      User            `json:"user"`
-	GroupInfo json.RawMessage `json:"groupInfo"`
+	Type      EventType `json:"type"`
+	User      User      `json:"user"`
+	GroupInfo GroupInfo `json:"groupInfo"`
 }
 
 type EventContactConnecting struct {
@@ -578,34 +578,34 @@ type EventContactConnecting struct {
 }
 
 type EventBusinessLinkConnecting struct {
-	Type        EventType       `json:"type"`
-	User        User            `json:"user"`
-	GroupInfo   json.RawMessage `json:"groupInfo"`
-	HostMember  json.RawMessage `json:"hostMember"`
-	FromContact Contact         `json:"fromContact"`
+	Type        EventType   `json:"type"`
+	User        User        `json:"user"`
+	GroupInfo   GroupInfo   `json:"groupInfo"`
+	HostMember  GroupMember `json:"hostMember"`
+	FromContact Contact     `json:"fromContact"`
 }
 
 type EventJoinedGroupMemberConnecting struct {
-	Type       EventType       `json:"type"`
-	User       User            `json:"user"`
-	GroupInfo  json.RawMessage `json:"groupInfo"`
-	HostMember json.RawMessage `json:"hostMember"`
-	Member     json.RawMessage `json:"member"`
+	Type       EventType   `json:"type"`
+	User       User        `json:"user"`
+	GroupInfo  GroupInfo   `json:"groupInfo"`
+	HostMember GroupMember `json:"hostMember"`
+	Member     GroupMember `json:"member"`
 }
 
 type EventSentGroupInvitation struct {
-	Type      EventType       `json:"type"`
-	User      User            `json:"user"`
-	GroupInfo json.RawMessage `json:"groupInfo"`
-	Contact   Contact         `json:"contact"`
-	Member    json.RawMessage `json:"member"`
+	Type      EventType   `json:"type"`
+	User      User        `json:"user"`
+	GroupInfo GroupInfo   `json:"groupInfo"`
+	Contact   Contact     `json:"contact"`
+	Member    GroupMember `json:"member"`
 }
 
 type EventGroupLinkConnecting struct {
-	Type       EventType       `json:"type"`
-	User       User            `json:"user"`
-	GroupInfo  json.RawMessage `json:"groupInfo"`
-	HostMember json.RawMessage `json:"hostMember"`
+	Type       EventType   `json:"type"`
+	User       User        `json:"user"`
+	GroupInfo  GroupInfo   `json:"groupInfo"`
+	HostMember GroupMember `json:"hostMember"`
 }
 
 type EventMessageError struct {

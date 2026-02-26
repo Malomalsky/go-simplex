@@ -37,12 +37,12 @@ func TestParseTSInterfaces_TypesSnapshot(t *testing.T) {
 	}
 	defer f.Close()
 
-	ifaces, err := ParseTSInterfaces(f)
+	ifaces, err := ParseTopLevelTSInterfaces(f)
 	if err != nil {
 		t.Fatalf("parse types interfaces: %v", err)
 	}
-	if got := len(ifaces); got < 100 {
-		t.Fatalf("types interfaces: got %d want >= 100", got)
+	if got := len(ifaces); got < 80 {
+		t.Fatalf("types interfaces: got %d want >= 80", got)
 	}
 
 	want := map[string]bool{
@@ -101,5 +101,60 @@ func TestRenderTypesRecordsGo(t *testing.T) {
 	}
 	if !strings.Contains(code, "func DecodeEventByType") {
 		t.Fatalf("missing DecodeEventByType")
+	}
+}
+
+func TestRenderTypesSharedGo(t *testing.T) {
+	t.Parallel()
+
+	ifaces := []TSInterface{
+		{
+			Name: "GroupInfo",
+			Fields: []TSField{
+				{Name: "groupId", TypeExpr: "number", Comment: "int64"},
+				{Name: "profile", TypeExpr: "Profile"},
+			},
+		},
+		{
+			Name: "Profile",
+			Fields: []TSField{
+				{Name: "displayName", TypeExpr: "string"},
+			},
+		},
+	}
+
+	src, err := RenderTypesSharedGo("types", ifaces, []string{"GroupInfo"})
+	if err != nil {
+		t.Fatalf("render shared types: %v", err)
+	}
+	code := string(src)
+	if !strings.Contains(code, "type GroupInfo struct") {
+		t.Fatalf("missing GroupInfo struct")
+	}
+	if !strings.Contains(code, "GroupId int64") {
+		t.Fatalf("expected int64 numeric mapping")
+	}
+	if !strings.Contains(code, "Profile Profile") {
+		t.Fatalf("expected known type mapping")
+	}
+}
+
+func TestParseTSInterfaces_WithExtendsClause(t *testing.T) {
+	t.Parallel()
+
+	src := strings.NewReader(`export interface Root extends SomeBase {
+  type: "root"
+  item: T.User
+}`)
+
+	ifaces, err := ParseTopLevelTSInterfaces(src)
+	if err != nil {
+		t.Fatalf("parse top-level interfaces: %v", err)
+	}
+	if len(ifaces) != 1 {
+		t.Fatalf("expected 1 interface, got %d", len(ifaces))
+	}
+	if ifaces[0].Name != "Root" {
+		t.Fatalf("unexpected interface name: %s", ifaces[0].Name)
 	}
 }
