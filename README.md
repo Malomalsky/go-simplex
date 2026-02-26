@@ -74,6 +74,8 @@ Bot runtime helpers:
 - `bot.OnTyped`
 - `bot.OnDirectText`
 - `bot.ExtractDirectTextMessages`
+- `rt.Use` middleware chain
+- handler panic recovery with `OnError` reporting
 
 High-level helper methods currently available on `*client.Client`:
 

@@ -3,6 +3,7 @@ package bot
 import (
 	"context"
 	"errors"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -236,5 +237,127 @@ func TestRuntimeOnDirectText(t *testing.T) {
 		}
 	case <-time.After(2 * time.Second):
 		t.Fatalf("timeout waiting direct text handler")
+	}
+}
+
+func TestRuntimeMiddlewareOrder(t *testing.T) {
+	t.Parallel()
+
+	tr := newMockTransport()
+	cli, err := client.New(tr)
+	if err != nil {
+		t.Fatalf("new client: %v", err)
+	}
+	defer cli.Close(context.Background())
+
+	rt, err := NewRuntime(cli)
+	if err != nil {
+		t.Fatalf("new runtime: %v", err)
+	}
+
+	var mu sync.Mutex
+	var called []string
+	push := func(s string) {
+		mu.Lock()
+		called = append(called, s)
+		mu.Unlock()
+	}
+
+	rt.Use(func(next Handler) Handler {
+		return func(ctx context.Context, cli *client.Client, msg protocol.Message) error {
+			push("mw1-pre")
+			err := next(ctx, cli, msg)
+			push("mw1-post")
+			return err
+		}
+	})
+	rt.Use(func(next Handler) Handler {
+		return func(ctx context.Context, cli *client.Client, msg protocol.Message) error {
+			push("mw2-pre")
+			err := next(ctx, cli, msg)
+			push("mw2-post")
+			return err
+		}
+	})
+	rt.On("newChatItems", func(context.Context, *client.Client, protocol.Message) error {
+		push("handler")
+		return nil
+	})
+
+	runCtx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	done := make(chan error, 1)
+	go func() {
+		done <- rt.Run(runCtx)
+	}()
+
+	tr.readCh <- []byte(`{"resp":{"type":"newChatItems","chatItems":[]}}`)
+
+	deadline := time.After(2 * time.Second)
+	for {
+		select {
+		case <-deadline:
+			t.Fatalf("timeout waiting for middleware order")
+		default:
+			mu.Lock()
+			ok := len(called) == 5
+			got := append([]string(nil), called...)
+			mu.Unlock()
+			if ok {
+				cancel()
+				<-done
+				want := []string{"mw1-pre", "mw2-pre", "handler", "mw2-post", "mw1-post"}
+				for i := range want {
+					if got[i] != want[i] {
+						t.Fatalf("unexpected middleware order: %#v", got)
+					}
+				}
+				return
+			}
+			time.Sleep(10 * time.Millisecond)
+		}
+	}
+}
+
+func TestRuntimeHandlerPanicRecovery(t *testing.T) {
+	t.Parallel()
+
+	tr := newMockTransport()
+	cli, err := client.New(tr)
+	if err != nil {
+		t.Fatalf("new client: %v", err)
+	}
+	defer cli.Close(context.Background())
+
+	rt, err := NewRuntime(cli)
+	if err != nil {
+		t.Fatalf("new runtime: %v", err)
+	}
+
+	rt.On("newChatItems", func(context.Context, *client.Client, protocol.Message) error {
+		panic("boom")
+	})
+
+	errCh := make(chan error, 1)
+	rt.OnError(func(ctx context.Context, err error) {
+		errCh <- err
+	})
+
+	runCtx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go rt.Run(runCtx)
+
+	tr.readCh <- []byte(`{"resp":{"type":"newChatItems","chatItems":[]}}`)
+
+	select {
+	case err := <-errCh:
+		if err == nil {
+			t.Fatalf("expected non-nil runtime error")
+		}
+		if !strings.Contains(err.Error(), "panic in handler") {
+			t.Fatalf("unexpected panic error: %v", err)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatalf("timeout waiting panic error")
 	}
 }

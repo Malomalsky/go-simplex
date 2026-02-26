@@ -13,6 +13,7 @@ import (
 type Handler func(ctx context.Context, cli *client.Client, msg protocol.Message) error
 type DecodedHandler func(ctx context.Context, cli *client.Client, event any) error
 type DirectTextHandler func(ctx context.Context, cli *client.Client, msg DirectTextMessage) error
+type Middleware func(next Handler) Handler
 type ErrorHandler func(ctx context.Context, err error)
 
 type Runtime struct {
@@ -21,6 +22,7 @@ type Runtime struct {
 	mu       sync.RWMutex
 	handlers map[string][]Handler
 	any      []Handler
+	mws      []Middleware
 
 	onError ErrorHandler
 }
@@ -98,6 +100,15 @@ func (r *Runtime) OnAny(h Handler) {
 	r.mu.Unlock()
 }
 
+func (r *Runtime) Use(mw Middleware) {
+	if mw == nil {
+		return
+	}
+	r.mu.Lock()
+	r.mws = append(r.mws, mw)
+	r.mu.Unlock()
+}
+
 func (r *Runtime) OnError(h ErrorHandler) {
 	if h == nil {
 		return
@@ -132,15 +143,16 @@ func (r *Runtime) dispatch(ctx context.Context, msg protocol.Message) error {
 	r.mu.RLock()
 	specific := append([]Handler(nil), r.handlers[msg.Resp.Type]...)
 	any := append([]Handler(nil), r.any...)
+	mws := append([]Middleware(nil), r.mws...)
 	r.mu.RUnlock()
 
 	for _, h := range specific {
-		if err := h(ctx, r.client, msg); err != nil {
+		if err := callHandlerWithRecovery(applyMiddlewares(h, mws), ctx, r.client, msg); err != nil {
 			return fmt.Errorf("event %s handler error: %w", msg.Resp.Type, err)
 		}
 	}
 	for _, h := range any {
-		if err := h(ctx, r.client, msg); err != nil {
+		if err := callHandlerWithRecovery(applyMiddlewares(h, mws), ctx, r.client, msg); err != nil {
 			return fmt.Errorf("event %s any-handler error: %w", msg.Resp.Type, err)
 		}
 	}
@@ -155,4 +167,27 @@ func (r *Runtime) emitErr(ctx context.Context, err error) {
 	handler := r.onError
 	r.mu.RUnlock()
 	handler(ctx, err)
+}
+
+func applyMiddlewares(h Handler, mws []Middleware) Handler {
+	if h == nil || len(mws) == 0 {
+		return h
+	}
+	out := h
+	for i := len(mws) - 1; i >= 0; i-- {
+		out = mws[i](out)
+	}
+	return out
+}
+
+func callHandlerWithRecovery(h Handler, ctx context.Context, cli *client.Client, msg protocol.Message) (err error) {
+	if h == nil {
+		return nil
+	}
+	defer func() {
+		if rec := recover(); rec != nil {
+			err = fmt.Errorf("panic in handler: %v", rec)
+		}
+	}()
+	return h(ctx, cli, msg)
 }
