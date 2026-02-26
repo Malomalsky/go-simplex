@@ -118,6 +118,17 @@ High-level helper methods currently available on `*client.Client`:
 - `SendTextToContactWithOptions`
 - `SendTextToGroup`
 - `SendTextToGroupWithOptions`
+- `UpdateChatItem`
+- `UpdateTextMessage`
+- `UpdateTextMessageInContact`
+- `UpdateTextMessageInGroup`
+- `DeleteChatItems`
+- `DeleteChatItemsInContact`
+- `DeleteChatItemsInGroup`
+- `ModerateDeleteGroupChatItems`
+- `SetChatItemReaction`
+- `AddChatItemReaction`
+- `RemoveChatItemReaction`
 
 Runnable example:
 

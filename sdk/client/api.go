@@ -26,6 +26,24 @@ type SendTextOptions struct {
 	TTL  *int64
 }
 
+type CIDeleteMode string
+
+const (
+	CIDeleteModeBroadcast    CIDeleteMode = "broadcast"
+	CIDeleteModeInternal     CIDeleteMode = "internal"
+	CIDeleteModeInternalMark CIDeleteMode = "internalMark"
+)
+
+type UpdateChatItemOptions struct {
+	Live bool
+}
+
+type UpdateChatItemSummary struct {
+	ResponseType types.ResponseType
+	Updated      bool
+	ChatItem     types.AChatItem
+}
+
 func (e *CommandError) Error() string {
 	return fmt.Sprintf("chat command error response: %s", e.ResponseType)
 }
@@ -651,6 +669,139 @@ func (c *Client) SendTextToGroup(ctx context.Context, groupID int64, text string
 
 func (c *Client) SendTextToGroupWithOptions(ctx context.Context, groupID int64, text string, options SendTextOptions) error {
 	return c.SendTextMessageWithOptions(ctx, command.GroupRef(groupID), text, options)
+}
+
+func (c *Client) UpdateChatItem(ctx context.Context, chatRef string, chatItemID int64, updatedMessage map[string]any, options UpdateChatItemOptions) (*UpdateChatItemSummary, error) {
+	result, err := c.SendAPIUpdateChatItem(ctx, command.APIUpdateChatItem{
+		ChatRef:        chatRef,
+		ChatItemId:     chatItemID,
+		LiveMessage:    options.Live,
+		UpdatedMessage: updatedMessage,
+	})
+	if err != nil {
+		return nil, err
+	}
+	if result.ChatItemUpdated != nil {
+		return &UpdateChatItemSummary{
+			ResponseType: types.ResponseTypeChatItemUpdated,
+			Updated:      true,
+			ChatItem:     result.ChatItemUpdated.ChatItem,
+		}, nil
+	}
+	if result.ChatItemNotChanged != nil {
+		return &UpdateChatItemSummary{
+			ResponseType: types.ResponseTypeChatItemNotChanged,
+			Updated:      false,
+			ChatItem:     result.ChatItemNotChanged.ChatItem,
+		}, nil
+	}
+	if result.ChatCmdError != nil {
+		return nil, commandErrorFromRaw(result.Message.Resp.Type, result.Message.Resp.Raw)
+	}
+	return nil, fmt.Errorf("missing response payload for %s", result.Message.Resp.Type)
+}
+
+func (c *Client) UpdateTextMessage(ctx context.Context, chatRef string, chatItemID int64, text string, live bool) (*UpdateChatItemSummary, error) {
+	return c.UpdateChatItem(ctx, chatRef, chatItemID, map[string]any{
+		"msgContent": map[string]any{
+			"type": "text",
+			"text": text,
+		},
+	}, UpdateChatItemOptions{Live: live})
+}
+
+func (c *Client) UpdateTextMessageInContact(ctx context.Context, contactID int64, chatItemID int64, text string, live bool) (*UpdateChatItemSummary, error) {
+	return c.UpdateTextMessage(ctx, command.DirectRef(contactID), chatItemID, text, live)
+}
+
+func (c *Client) UpdateTextMessageInGroup(ctx context.Context, groupID int64, chatItemID int64, text string, live bool) (*UpdateChatItemSummary, error) {
+	return c.UpdateTextMessage(ctx, command.GroupRef(groupID), chatItemID, text, live)
+}
+
+func (c *Client) DeleteChatItems(ctx context.Context, chatRef string, chatItemIDs []int64, deleteMode CIDeleteMode) (*types.ResponseChatItemsDeleted, error) {
+	if len(chatItemIDs) == 0 {
+		return nil, fmt.Errorf("chatItemIDs is empty")
+	}
+	mode := deleteMode
+	if mode == "" {
+		mode = CIDeleteModeBroadcast
+	}
+
+	result, err := c.SendAPIDeleteChatItem(ctx, command.APIDeleteChatItem{
+		ChatRef:     chatRef,
+		ChatItemIds: append([]int64(nil), chatItemIDs...),
+		DeleteMode:  string(mode),
+	})
+	if err != nil {
+		return nil, err
+	}
+	if result.ChatItemsDeleted != nil {
+		return result.ChatItemsDeleted, nil
+	}
+	if result.ChatCmdError != nil {
+		return nil, commandErrorFromRaw(result.Message.Resp.Type, result.Message.Resp.Raw)
+	}
+	return nil, fmt.Errorf("missing response payload for %s", result.Message.Resp.Type)
+}
+
+func (c *Client) DeleteChatItemsInContact(ctx context.Context, contactID int64, chatItemIDs []int64, deleteMode CIDeleteMode) (*types.ResponseChatItemsDeleted, error) {
+	return c.DeleteChatItems(ctx, command.DirectRef(contactID), chatItemIDs, deleteMode)
+}
+
+func (c *Client) DeleteChatItemsInGroup(ctx context.Context, groupID int64, chatItemIDs []int64, deleteMode CIDeleteMode) (*types.ResponseChatItemsDeleted, error) {
+	return c.DeleteChatItems(ctx, command.GroupRef(groupID), chatItemIDs, deleteMode)
+}
+
+func (c *Client) ModerateDeleteGroupChatItems(ctx context.Context, groupID int64, chatItemIDs []int64) (*types.ResponseChatItemsDeleted, error) {
+	if len(chatItemIDs) == 0 {
+		return nil, fmt.Errorf("chatItemIDs is empty")
+	}
+
+	result, err := c.SendAPIDeleteMemberChatItem(ctx, command.APIDeleteMemberChatItem{
+		GroupId:     groupID,
+		ChatItemIds: append([]int64(nil), chatItemIDs...),
+	})
+	if err != nil {
+		return nil, err
+	}
+	if result.ChatItemsDeleted != nil {
+		return result.ChatItemsDeleted, nil
+	}
+	if result.ChatCmdError != nil {
+		return nil, commandErrorFromRaw(result.Message.Resp.Type, result.Message.Resp.Raw)
+	}
+	return nil, fmt.Errorf("missing response payload for %s", result.Message.Resp.Type)
+}
+
+func (c *Client) SetChatItemReaction(ctx context.Context, chatRef string, chatItemID int64, add bool, reaction map[string]any) (*types.ResponseChatItemReaction, error) {
+	if reaction == nil {
+		return nil, fmt.Errorf("reaction is nil")
+	}
+
+	result, err := c.SendAPIChatItemReaction(ctx, command.APIChatItemReaction{
+		ChatRef:    chatRef,
+		ChatItemId: chatItemID,
+		Add:        add,
+		Reaction:   reaction,
+	})
+	if err != nil {
+		return nil, err
+	}
+	if result.ChatItemReaction != nil {
+		return result.ChatItemReaction, nil
+	}
+	if result.ChatCmdError != nil {
+		return nil, commandErrorFromRaw(result.Message.Resp.Type, result.Message.Resp.Raw)
+	}
+	return nil, fmt.Errorf("missing response payload for %s", result.Message.Resp.Type)
+}
+
+func (c *Client) AddChatItemReaction(ctx context.Context, chatRef string, chatItemID int64, reaction map[string]any) (*types.ResponseChatItemReaction, error) {
+	return c.SetChatItemReaction(ctx, chatRef, chatItemID, true, reaction)
+}
+
+func (c *Client) RemoveChatItemReaction(ctx context.Context, chatRef string, chatItemID int64, reaction map[string]any) (*types.ResponseChatItemReaction, error) {
+	return c.SetChatItemReaction(ctx, chatRef, chatItemID, false, reaction)
 }
 
 func connectSummaryFromAPIConnectResult(result APIConnectResult) (*ConnectSummary, error) {

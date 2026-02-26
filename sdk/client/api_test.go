@@ -1366,3 +1366,323 @@ func TestSendTextToGroupWithOptions(t *testing.T) {
 		t.Fatalf("expected live=on in group command: %q", cmd)
 	}
 }
+
+func TestUpdateTextMessage(t *testing.T) {
+	t.Parallel()
+
+	transport := newMockTransport()
+	c, err := New(transport)
+	if err != nil {
+		t.Fatalf("new client: %v", err)
+	}
+	defer c.Close(context.Background())
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	done := make(chan string, 1)
+	go func() {
+		rawReq := <-transport.writeCh
+		var req struct {
+			CorrID string `json:"corrId"`
+			Cmd    string `json:"cmd"`
+		}
+		_ = json.Unmarshal(rawReq, &req)
+		done <- req.Cmd
+		transport.readCh <- []byte(`{
+			"corrId":"` + req.CorrID + `",
+			"resp":{
+				"type":"chatItemUpdated",
+				"user":{"userId":1,"profile":{"displayName":"bot"}},
+				"chatItem":{
+					"chatInfo":{"type":"direct","contact":{"contactId":42}},
+					"chatItem":{"content":{"type":"rcvMsgContent","msgContent":{"type":"text","text":"updated"}}}
+				}
+			}
+		}`)
+	}()
+
+	res, err := c.UpdateTextMessage(ctx, "@42", 7, "updated", true)
+	if err != nil {
+		t.Fatalf("UpdateTextMessage: %v", err)
+	}
+	cmd := <-done
+
+	if res.ResponseType != types.ResponseTypeChatItemUpdated {
+		t.Fatalf("unexpected response type: %s", res.ResponseType)
+	}
+	if !res.Updated {
+		t.Fatalf("expected updated=true")
+	}
+	if !strings.HasPrefix(cmd, "/_update item @42 7") {
+		t.Fatalf("unexpected update command: %q", cmd)
+	}
+	if !strings.Contains(cmd, " live=on") {
+		t.Fatalf("expected live=on in update command: %q", cmd)
+	}
+}
+
+func TestUpdateTextMessageInContact(t *testing.T) {
+	t.Parallel()
+
+	transport := newMockTransport()
+	c, err := New(transport)
+	if err != nil {
+		t.Fatalf("new client: %v", err)
+	}
+	defer c.Close(context.Background())
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	done := make(chan string, 1)
+	go func() {
+		rawReq := <-transport.writeCh
+		var req struct {
+			CorrID string `json:"corrId"`
+			Cmd    string `json:"cmd"`
+		}
+		_ = json.Unmarshal(rawReq, &req)
+		done <- req.Cmd
+		transport.readCh <- []byte(`{
+			"corrId":"` + req.CorrID + `",
+			"resp":{
+				"type":"chatItemNotChanged",
+				"user":{"userId":1,"profile":{"displayName":"bot"}},
+				"chatItem":{
+					"chatInfo":{"type":"direct","contact":{"contactId":42}},
+					"chatItem":{"content":{"type":"rcvMsgContent","msgContent":{"type":"text","text":"same"}}}
+				}
+			}
+		}`)
+	}()
+
+	res, err := c.UpdateTextMessageInContact(ctx, 42, 7, "same", false)
+	if err != nil {
+		t.Fatalf("UpdateTextMessageInContact: %v", err)
+	}
+	cmd := <-done
+
+	if res.ResponseType != types.ResponseTypeChatItemNotChanged {
+		t.Fatalf("unexpected response type: %s", res.ResponseType)
+	}
+	if res.Updated {
+		t.Fatalf("expected updated=false")
+	}
+	if !strings.HasPrefix(cmd, "/_update item @42 7") {
+		t.Fatalf("unexpected contact update command: %q", cmd)
+	}
+}
+
+func TestDeleteChatItems(t *testing.T) {
+	t.Parallel()
+
+	transport := newMockTransport()
+	c, err := New(transport)
+	if err != nil {
+		t.Fatalf("new client: %v", err)
+	}
+	defer c.Close(context.Background())
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	done := make(chan string, 1)
+	go func() {
+		rawReq := <-transport.writeCh
+		var req struct {
+			CorrID string `json:"corrId"`
+			Cmd    string `json:"cmd"`
+		}
+		_ = json.Unmarshal(rawReq, &req)
+		done <- req.Cmd
+		transport.readCh <- []byte(`{
+			"corrId":"` + req.CorrID + `",
+			"resp":{
+				"type":"chatItemsDeleted",
+				"user":{"userId":1,"profile":{"displayName":"bot"}},
+				"chatItemDeletions":[],
+				"byUser":true,
+				"timed":false
+			}
+		}`)
+	}()
+
+	if _, err := c.DeleteChatItems(ctx, "@42", []int64{1, 2}, CIDeleteModeBroadcast); err != nil {
+		t.Fatalf("DeleteChatItems: %v", err)
+	}
+	cmd := <-done
+
+	if !strings.HasPrefix(cmd, "/_delete item @42 1,2 broadcast") {
+		t.Fatalf("unexpected delete command: %q", cmd)
+	}
+}
+
+func TestDeleteChatItemsEmptyIDs(t *testing.T) {
+	t.Parallel()
+
+	transport := newMockTransport()
+	c, err := New(transport)
+	if err != nil {
+		t.Fatalf("new client: %v", err)
+	}
+	defer c.Close(context.Background())
+
+	_, err = c.DeleteChatItems(context.Background(), "@42", nil, CIDeleteModeBroadcast)
+	if err == nil {
+		t.Fatalf("expected error for empty chatItemIDs")
+	}
+}
+
+func TestModerateDeleteGroupChatItems(t *testing.T) {
+	t.Parallel()
+
+	transport := newMockTransport()
+	c, err := New(transport)
+	if err != nil {
+		t.Fatalf("new client: %v", err)
+	}
+	defer c.Close(context.Background())
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	done := make(chan string, 1)
+	go func() {
+		rawReq := <-transport.writeCh
+		var req struct {
+			CorrID string `json:"corrId"`
+			Cmd    string `json:"cmd"`
+		}
+		_ = json.Unmarshal(rawReq, &req)
+		done <- req.Cmd
+		transport.readCh <- []byte(`{
+			"corrId":"` + req.CorrID + `",
+			"resp":{
+				"type":"chatItemsDeleted",
+				"user":{"userId":1,"profile":{"displayName":"bot"}},
+				"chatItemDeletions":[],
+				"byUser":true,
+				"timed":false
+			}
+		}`)
+	}()
+
+	if _, err := c.ModerateDeleteGroupChatItems(ctx, 7, []int64{10, 11}); err != nil {
+		t.Fatalf("ModerateDeleteGroupChatItems: %v", err)
+	}
+	cmd := <-done
+
+	if !strings.HasPrefix(cmd, "/_delete member item #7 10,11") {
+		t.Fatalf("unexpected moderate delete command: %q", cmd)
+	}
+}
+
+func TestAddChatItemReaction(t *testing.T) {
+	t.Parallel()
+
+	transport := newMockTransport()
+	c, err := New(transport)
+	if err != nil {
+		t.Fatalf("new client: %v", err)
+	}
+	defer c.Close(context.Background())
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	done := make(chan string, 1)
+	go func() {
+		rawReq := <-transport.writeCh
+		var req struct {
+			CorrID string `json:"corrId"`
+			Cmd    string `json:"cmd"`
+		}
+		_ = json.Unmarshal(rawReq, &req)
+		done <- req.Cmd
+		transport.readCh <- []byte(`{
+			"corrId":"` + req.CorrID + `",
+			"resp":{
+				"type":"chatItemReaction",
+				"user":{"userId":1,"profile":{"displayName":"bot"}},
+				"added":true,
+				"reaction":{"kind":"like"}
+			}
+		}`)
+	}()
+
+	res, err := c.AddChatItemReaction(ctx, "@42", 9, map[string]any{"kind": "like"})
+	if err != nil {
+		t.Fatalf("AddChatItemReaction: %v", err)
+	}
+	cmd := <-done
+
+	if !res.Added {
+		t.Fatalf("expected reaction to be added")
+	}
+	if !strings.HasPrefix(cmd, "/_reaction @42 9 on") {
+		t.Fatalf("unexpected add reaction command: %q", cmd)
+	}
+}
+
+func TestRemoveChatItemReaction(t *testing.T) {
+	t.Parallel()
+
+	transport := newMockTransport()
+	c, err := New(transport)
+	if err != nil {
+		t.Fatalf("new client: %v", err)
+	}
+	defer c.Close(context.Background())
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	done := make(chan string, 1)
+	go func() {
+		rawReq := <-transport.writeCh
+		var req struct {
+			CorrID string `json:"corrId"`
+			Cmd    string `json:"cmd"`
+		}
+		_ = json.Unmarshal(rawReq, &req)
+		done <- req.Cmd
+		transport.readCh <- []byte(`{
+			"corrId":"` + req.CorrID + `",
+			"resp":{
+				"type":"chatItemReaction",
+				"user":{"userId":1,"profile":{"displayName":"bot"}},
+				"added":false,
+				"reaction":{"kind":"like"}
+			}
+		}`)
+	}()
+
+	res, err := c.RemoveChatItemReaction(ctx, "@42", 9, map[string]any{"kind": "like"})
+	if err != nil {
+		t.Fatalf("RemoveChatItemReaction: %v", err)
+	}
+	cmd := <-done
+
+	if res.Added {
+		t.Fatalf("expected reaction to be removed")
+	}
+	if !strings.HasPrefix(cmd, "/_reaction @42 9 off") {
+		t.Fatalf("unexpected remove reaction command: %q", cmd)
+	}
+}
+
+func TestSetChatItemReactionNilPayload(t *testing.T) {
+	t.Parallel()
+
+	transport := newMockTransport()
+	c, err := New(transport)
+	if err != nil {
+		t.Fatalf("new client: %v", err)
+	}
+	defer c.Close(context.Background())
+
+	if _, err := c.SetChatItemReaction(context.Background(), "@42", 1, true, nil); err == nil {
+		t.Fatalf("expected nil reaction error")
+	}
+}
