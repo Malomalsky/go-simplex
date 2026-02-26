@@ -72,6 +72,7 @@ if err := rt.Run(ctx); err != nil && !errors.Is(err, context.Canceled) {
 
 High-level helper methods currently available on `*client.Client`:
 
+- `BootstrapBot`
 - `GetActiveUser`
 - `GetUserAddress`
 - `CreateUserAddress`

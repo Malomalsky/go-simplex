@@ -24,20 +24,12 @@ func main() {
 	}
 	defer cli.Close(context.Background())
 
-	user, err := cli.GetActiveUser(ctx)
+	boot, err := cli.BootstrapBot(ctx)
 	if err != nil {
-		log.Fatalf("get active user: %v", err)
+		log.Fatalf("bootstrap bot: %v", err)
 	}
 
-	address, err := cli.EnsureUserAddress(ctx, user.UserID)
-	if err != nil {
-		log.Fatalf("ensure user address: %v", err)
-	}
-	if err := cli.EnableAddressAutoAccept(ctx, user.UserID); err != nil {
-		log.Fatalf("enable auto-accept: %v", err)
-	}
-
-	fmt.Printf("Bot address: %s\n", address)
+	fmt.Printf("Bot address: %s\n", boot.Address)
 
 	rt, err := bot.NewRuntime(cli)
 	if err != nil {
