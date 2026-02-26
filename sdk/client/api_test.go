@@ -3,6 +3,7 @@ package client
 import (
 	"context"
 	"encoding/json"
+	"strings"
 	"testing"
 	"time"
 
@@ -1178,6 +1179,86 @@ func TestSendTextMessage(t *testing.T) {
 	<-done
 }
 
+func TestSendTextMessageWithOptions(t *testing.T) {
+	t.Parallel()
+
+	transport := newMockTransport()
+	c, err := New(transport)
+	if err != nil {
+		t.Fatalf("new client: %v", err)
+	}
+	defer c.Close(context.Background())
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	done := make(chan string, 1)
+	go func() {
+		rawReq := <-transport.writeCh
+		var req struct {
+			CorrID string `json:"corrId"`
+			Cmd    string `json:"cmd"`
+		}
+		_ = json.Unmarshal(rawReq, &req)
+		done <- req.Cmd
+		transport.readCh <- []byte(`{"corrId":"` + req.CorrID + `","resp":{"type":"newChatItems","chatItems":[]}}`)
+	}()
+
+	ttl := int64(120)
+	if err := c.SendTextMessageWithOptions(ctx, "@42", "hello", SendTextOptions{
+		Live: true,
+		TTL:  &ttl,
+	}); err != nil {
+		t.Fatalf("SendTextMessageWithOptions: %v", err)
+	}
+
+	cmd := <-done
+	if !strings.Contains(cmd, " live=on") {
+		t.Fatalf("expected live=on in command: %q", cmd)
+	}
+	if !strings.Contains(cmd, " ttl=120") {
+		t.Fatalf("expected ttl=120 in command: %q", cmd)
+	}
+}
+
+func TestSendTextToContactWithOptions(t *testing.T) {
+	t.Parallel()
+
+	transport := newMockTransport()
+	c, err := New(transport)
+	if err != nil {
+		t.Fatalf("new client: %v", err)
+	}
+	defer c.Close(context.Background())
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	done := make(chan string, 1)
+	go func() {
+		rawReq := <-transport.writeCh
+		var req struct {
+			CorrID string `json:"corrId"`
+			Cmd    string `json:"cmd"`
+		}
+		_ = json.Unmarshal(rawReq, &req)
+		done <- req.Cmd
+		transport.readCh <- []byte(`{"corrId":"` + req.CorrID + `","resp":{"type":"newChatItems","chatItems":[]}}`)
+	}()
+
+	if err := c.SendTextToContactWithOptions(ctx, 42, "hello", SendTextOptions{Live: true}); err != nil {
+		t.Fatalf("SendTextToContactWithOptions: %v", err)
+	}
+
+	cmd := <-done
+	if !strings.HasPrefix(cmd, "/_send @42") {
+		t.Fatalf("unexpected contact cmd: %q", cmd)
+	}
+	if !strings.Contains(cmd, " live=on") {
+		t.Fatalf("expected live=on in contact command: %q", cmd)
+	}
+}
+
 func TestSendTextToContact(t *testing.T) {
 	t.Parallel()
 
@@ -1245,5 +1326,43 @@ func TestSendTextToGroup(t *testing.T) {
 	cmd := <-done
 	if cmd == "" || cmd[:9] != "/_send #7" {
 		t.Fatalf("unexpected group cmd: %q", cmd)
+	}
+}
+
+func TestSendTextToGroupWithOptions(t *testing.T) {
+	t.Parallel()
+
+	transport := newMockTransport()
+	c, err := New(transport)
+	if err != nil {
+		t.Fatalf("new client: %v", err)
+	}
+	defer c.Close(context.Background())
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	done := make(chan string, 1)
+	go func() {
+		rawReq := <-transport.writeCh
+		var req struct {
+			CorrID string `json:"corrId"`
+			Cmd    string `json:"cmd"`
+		}
+		_ = json.Unmarshal(rawReq, &req)
+		done <- req.Cmd
+		transport.readCh <- []byte(`{"corrId":"` + req.CorrID + `","resp":{"type":"newChatItems","chatItems":[]}}`)
+	}()
+
+	if err := c.SendTextToGroupWithOptions(ctx, 7, "hello", SendTextOptions{Live: true}); err != nil {
+		t.Fatalf("SendTextToGroupWithOptions: %v", err)
+	}
+
+	cmd := <-done
+	if !strings.HasPrefix(cmd, "/_send #7") {
+		t.Fatalf("unexpected group cmd: %q", cmd)
+	}
+	if !strings.Contains(cmd, " live=on") {
+		t.Fatalf("expected live=on in group command: %q", cmd)
 	}
 }

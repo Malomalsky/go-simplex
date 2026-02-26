@@ -113,8 +113,11 @@ High-level helper methods currently available on `*client.Client`:
 - `GetGroupLink`
 - `EnableAddressAutoAccept`
 - `SendTextMessage`
+- `SendTextMessageWithOptions`
 - `SendTextToContact`
+- `SendTextToContactWithOptions`
 - `SendTextToGroup`
+- `SendTextToGroupWithOptions`
 
 Runnable example:
 

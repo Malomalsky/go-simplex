@@ -21,6 +21,11 @@ type ConnectSummary struct {
 	Connection      json.RawMessage
 }
 
+type SendTextOptions struct {
+	Live bool
+	TTL  *int64
+}
+
 func (e *CommandError) Error() string {
 	return fmt.Sprintf("chat command error response: %s", e.ResponseType)
 }
@@ -600,8 +605,12 @@ func (c *Client) EnableAddressAutoAccept(ctx context.Context, userID int64) erro
 }
 
 func (c *Client) SendTextMessage(ctx context.Context, sendRef string, text string) error {
+	return c.SendTextMessageWithOptions(ctx, sendRef, text, SendTextOptions{})
+}
+
+func (c *Client) SendTextMessageWithOptions(ctx context.Context, sendRef string, text string, options SendTextOptions) error {
 	payload := []map[string]any{
-		map[string]any{
+		{
 			"msgContent": map[string]any{
 				"type": "text",
 				"text": text,
@@ -612,7 +621,8 @@ func (c *Client) SendTextMessage(ctx context.Context, sendRef string, text strin
 
 	result, err := c.SendAPISendMessages(ctx, command.APISendMessages{
 		SendRef:          sendRef,
-		LiveMessage:      false,
+		LiveMessage:      options.Live,
+		Ttl:              options.TTL,
 		ComposedMessages: payload,
 	})
 	if err != nil {
@@ -628,11 +638,19 @@ func (c *Client) SendTextMessage(ctx context.Context, sendRef string, text strin
 }
 
 func (c *Client) SendTextToContact(ctx context.Context, contactID int64, text string) error {
-	return c.SendTextMessage(ctx, command.DirectRef(contactID), text)
+	return c.SendTextToContactWithOptions(ctx, contactID, text, SendTextOptions{})
+}
+
+func (c *Client) SendTextToContactWithOptions(ctx context.Context, contactID int64, text string, options SendTextOptions) error {
+	return c.SendTextMessageWithOptions(ctx, command.DirectRef(contactID), text, options)
 }
 
 func (c *Client) SendTextToGroup(ctx context.Context, groupID int64, text string) error {
-	return c.SendTextMessage(ctx, command.GroupRef(groupID), text)
+	return c.SendTextToGroupWithOptions(ctx, groupID, text, SendTextOptions{})
+}
+
+func (c *Client) SendTextToGroupWithOptions(ctx context.Context, groupID int64, text string, options SendTextOptions) error {
+	return c.SendTextMessageWithOptions(ctx, command.GroupRef(groupID), text, options)
 }
 
 func connectSummaryFromAPIConnectResult(result APIConnectResult) (*ConnectSummary, error) {
