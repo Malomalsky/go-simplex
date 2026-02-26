@@ -15,6 +15,12 @@ type CommandError struct {
 	Payload      []byte
 }
 
+type ConnectSummary struct {
+	ResponseType    types.ResponseType
+	ExistingContact *types.Contact
+	Connection      json.RawMessage
+}
+
 func (e *CommandError) Error() string {
 	return fmt.Sprintf("chat command error response: %s", e.ResponseType)
 }
@@ -396,6 +402,51 @@ func (c *Client) CreateContactInvitation(ctx context.Context, userID int64, inco
 	return "", fmt.Errorf("missing response payload for %s", result.Message.Resp.Type)
 }
 
+func (c *Client) ConnectPlan(ctx context.Context, userID int64, connectionLink string) (*types.ResponseConnectionPlan, error) {
+	var link *string
+	if connectionLink != "" {
+		link = &connectionLink
+	}
+
+	result, err := c.SendAPIConnectPlan(ctx, command.APIConnectPlan{
+		UserId:         userID,
+		ConnectionLink: link,
+	})
+	if err != nil {
+		return nil, err
+	}
+	if result.ConnectionPlan != nil {
+		return result.ConnectionPlan, nil
+	}
+	if result.ChatCmdError != nil {
+		return nil, commandErrorFromRaw(result.Message.Resp.Type, result.Message.Resp.Raw)
+	}
+	return nil, fmt.Errorf("missing response payload for %s", result.Message.Resp.Type)
+}
+
+func (c *Client) ConnectWithPreparedLink(ctx context.Context, userID int64, incognito bool, preparedLink *string) (*ConnectSummary, error) {
+	result, err := c.SendAPIConnect(ctx, command.APIConnect{
+		UserId:        userID,
+		Incognito:     incognito,
+		PreparedLink_: preparedLink,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return connectSummaryFromAPIConnectResult(result)
+}
+
+func (c *Client) ConnectWithLink(ctx context.Context, connLink *string) (*ConnectSummary, error) {
+	result, err := c.SendConnect(ctx, command.Connect{
+		Incognito: false,
+		ConnLink_: connLink,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return connectSummaryFromConnectResult(result)
+}
+
 func (c *Client) CreateUser(ctx context.Context, newUser map[string]any) (*types.User, error) {
 	result, err := c.SendCreateActiveUser(ctx, command.CreateActiveUser{NewUser: newUser})
 	if err != nil {
@@ -582,4 +633,54 @@ func (c *Client) SendTextToContact(ctx context.Context, contactID int64, text st
 
 func (c *Client) SendTextToGroup(ctx context.Context, groupID int64, text string) error {
 	return c.SendTextMessage(ctx, command.GroupRef(groupID), text)
+}
+
+func connectSummaryFromAPIConnectResult(result APIConnectResult) (*ConnectSummary, error) {
+	if result.ContactAlreadyExists != nil {
+		return &ConnectSummary{
+			ResponseType:    types.ResponseTypeContactAlreadyExists,
+			ExistingContact: &result.ContactAlreadyExists.Contact,
+		}, nil
+	}
+	if result.SentConfirmation != nil {
+		return &ConnectSummary{
+			ResponseType: types.ResponseTypeSentConfirmation,
+			Connection:   append([]byte(nil), result.SentConfirmation.Connection...),
+		}, nil
+	}
+	if result.SentInvitation != nil {
+		return &ConnectSummary{
+			ResponseType: types.ResponseTypeSentInvitation,
+			Connection:   append([]byte(nil), result.SentInvitation.Connection...),
+		}, nil
+	}
+	if result.ChatCmdError != nil {
+		return nil, commandErrorFromRaw(result.Message.Resp.Type, result.Message.Resp.Raw)
+	}
+	return nil, fmt.Errorf("missing response payload for %s", result.Message.Resp.Type)
+}
+
+func connectSummaryFromConnectResult(result ConnectResult) (*ConnectSummary, error) {
+	if result.ContactAlreadyExists != nil {
+		return &ConnectSummary{
+			ResponseType:    types.ResponseTypeContactAlreadyExists,
+			ExistingContact: &result.ContactAlreadyExists.Contact,
+		}, nil
+	}
+	if result.SentConfirmation != nil {
+		return &ConnectSummary{
+			ResponseType: types.ResponseTypeSentConfirmation,
+			Connection:   append([]byte(nil), result.SentConfirmation.Connection...),
+		}, nil
+	}
+	if result.SentInvitation != nil {
+		return &ConnectSummary{
+			ResponseType: types.ResponseTypeSentInvitation,
+			Connection:   append([]byte(nil), result.SentInvitation.Connection...),
+		}, nil
+	}
+	if result.ChatCmdError != nil {
+		return nil, commandErrorFromRaw(result.Message.Resp.Type, result.Message.Resp.Raw)
+	}
+	return nil, fmt.Errorf("missing response payload for %s", result.Message.Resp.Type)
 }

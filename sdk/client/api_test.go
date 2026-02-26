@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"testing"
 	"time"
+
+	"github.com/Malomalsky/go-simplex/sdk/types"
 )
 
 func TestGetActiveUser(t *testing.T) {
@@ -1007,6 +1009,142 @@ func TestSetContactPreferences(t *testing.T) {
 		t.Fatalf("SetContactPreferences: %v", err)
 	}
 	<-done
+}
+
+func TestConnectPlan(t *testing.T) {
+	t.Parallel()
+
+	transport := newMockTransport()
+	c, err := New(transport)
+	if err != nil {
+		t.Fatalf("new client: %v", err)
+	}
+	defer c.Close(context.Background())
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	done := make(chan struct{})
+	go func() {
+		rawReq := <-transport.writeCh
+		var req struct {
+			CorrID string `json:"corrId"`
+		}
+		_ = json.Unmarshal(rawReq, &req)
+		transport.readCh <- []byte(`{
+			"corrId":"` + req.CorrID + `",
+			"resp":{
+				"type":"connectionPlan",
+				"user":{"userId":1,"profile":{"displayName":"bot"}},
+				"connLink":{"connFullLink":"smp://full","connShortLink":"smp://short"},
+				"connectionPlan":{"plan":"contact"}
+			}
+		}`)
+		close(done)
+	}()
+
+	plan, err := c.ConnectPlan(ctx, 1, "smp://invite")
+	if err != nil {
+		t.Fatalf("ConnectPlan: %v", err)
+	}
+	<-done
+
+	if plan.ConnLink.PreferredLink() != "smp://short" {
+		t.Fatalf("unexpected plan link: %+v", plan.ConnLink)
+	}
+}
+
+func TestConnectWithPreparedLink(t *testing.T) {
+	t.Parallel()
+
+	transport := newMockTransport()
+	c, err := New(transport)
+	if err != nil {
+		t.Fatalf("new client: %v", err)
+	}
+	defer c.Close(context.Background())
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	done := make(chan struct{})
+	go func() {
+		rawReq := <-transport.writeCh
+		var req struct {
+			CorrID string `json:"corrId"`
+		}
+		_ = json.Unmarshal(rawReq, &req)
+		transport.readCh <- []byte(`{
+			"corrId":"` + req.CorrID + `",
+			"resp":{
+				"type":"contactAlreadyExists",
+				"user":{"userId":1,"profile":{"displayName":"bot"}},
+				"contact":{"contactId":42,"profile":{"displayName":"alice"}}
+			}
+		}`)
+		close(done)
+	}()
+
+	link := "smp://invite"
+	res, err := c.ConnectWithPreparedLink(ctx, 1, false, &link)
+	if err != nil {
+		t.Fatalf("ConnectWithPreparedLink: %v", err)
+	}
+	<-done
+
+	if res.ResponseType != types.ResponseTypeContactAlreadyExists {
+		t.Fatalf("unexpected response type: %s", res.ResponseType)
+	}
+	if res.ExistingContact == nil || res.ExistingContact.ContactID != 42 {
+		t.Fatalf("unexpected existing contact: %+v", res.ExistingContact)
+	}
+}
+
+func TestConnectWithLink(t *testing.T) {
+	t.Parallel()
+
+	transport := newMockTransport()
+	c, err := New(transport)
+	if err != nil {
+		t.Fatalf("new client: %v", err)
+	}
+	defer c.Close(context.Background())
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	done := make(chan struct{})
+	go func() {
+		rawReq := <-transport.writeCh
+		var req struct {
+			CorrID string `json:"corrId"`
+		}
+		_ = json.Unmarshal(rawReq, &req)
+		transport.readCh <- []byte(`{
+			"corrId":"` + req.CorrID + `",
+			"resp":{
+				"type":"sentInvitation",
+				"user":{"userId":1,"profile":{"displayName":"bot"}},
+				"connection":{"id":"conn-1"},
+				"customUserProfile":{}
+			}
+		}`)
+		close(done)
+	}()
+
+	link := "smp://invite"
+	res, err := c.ConnectWithLink(ctx, &link)
+	if err != nil {
+		t.Fatalf("ConnectWithLink: %v", err)
+	}
+	<-done
+
+	if res.ResponseType != types.ResponseTypeSentInvitation {
+		t.Fatalf("unexpected response type: %s", res.ResponseType)
+	}
+	if string(res.Connection) == "" {
+		t.Fatalf("expected non-empty connection payload")
+	}
 }
 
 func TestSendTextMessage(t *testing.T) {
