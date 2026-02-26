@@ -28,6 +28,41 @@ func TestParseTSInterfaces_Responses(t *testing.T) {
 	}
 }
 
+func TestParseTSInterfaces_TypesSnapshot(t *testing.T) {
+	t.Parallel()
+
+	f, err := os.Open(filepath.Join("..", "..", "spec", "upstream", "types.ts"))
+	if err != nil {
+		t.Fatalf("open types.ts: %v", err)
+	}
+	defer f.Close()
+
+	ifaces, err := ParseTSInterfaces(f)
+	if err != nil {
+		t.Fatalf("parse types interfaces: %v", err)
+	}
+	if got := len(ifaces); got < 100 {
+		t.Fatalf("types interfaces: got %d want >= 100", got)
+	}
+
+	want := map[string]bool{
+		"User":      false,
+		"Contact":   false,
+		"AChatItem": false,
+		"Profile":   false,
+	}
+	for _, iface := range ifaces {
+		if _, ok := want[iface.Name]; ok {
+			want[iface.Name] = true
+		}
+	}
+	for name, ok := range want {
+		if !ok {
+			t.Fatalf("types interface %s not parsed", name)
+		}
+	}
+}
+
 func TestRenderTypesRecordsGo(t *testing.T) {
 	t.Parallel()
 

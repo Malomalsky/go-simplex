@@ -21,7 +21,7 @@ type TSInterface struct {
 }
 
 var (
-	tsIfaceStartRe = regexp.MustCompile(`^\s*export interface ([A-Za-z0-9_]+) extends Interface \{$`)
+	tsIfaceStartRe = regexp.MustCompile(`^\s*export interface ([A-Za-z0-9_]+)(?: extends Interface)? \{$`)
 	tsFieldRe      = regexp.MustCompile(`^\s*([A-Za-z0-9_]+)(\?)?:\s*([^/]+?)(?:\s*//\s*(.+))?\s*$`)
 )
 
