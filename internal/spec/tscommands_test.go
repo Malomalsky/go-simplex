@@ -52,7 +52,15 @@ func TestRenderCommandRequestsGo(t *testing.T) {
 			Fields: []TSField{
 				{Name: "userId", TypeExpr: "number", Comment: "int64"},
 			},
-			ExprJS: `"/_address " + self.userId`,
+			ExprJS: `'/_address ' + self.userId`,
+		},
+		{
+			Name: "ReceiveFile",
+			Fields: []TSField{
+				{Name: "fileId", TypeExpr: "number", Comment: "int64"},
+				{Name: "storeEncrypted", Optional: true, TypeExpr: "boolean"},
+			},
+			ExprJS: `'/freceive ' + self.fileId + (typeof self.storeEncrypted == 'boolean' ? ' encrypt=' + (self.storeEncrypted ? 'on' : 'off') : '')`,
 		},
 	}
 
@@ -67,7 +75,13 @@ func TestRenderCommandRequestsGo(t *testing.T) {
 	if !strings.Contains(code, "type APICreateMyAddress struct") {
 		t.Fatalf("missing APICreateMyAddress struct")
 	}
-	if !strings.Contains(code, "evalCommandExpression") {
-		t.Fatalf("missing eval helper")
+	if !strings.Contains(code, `return "/user"`) {
+		t.Fatalf("missing direct string rendering")
+	}
+	if !strings.Contains(code, `jsToString(c.UserId)`) {
+		t.Fatalf("missing typed field rendering")
+	}
+	if !strings.Contains(code, `jsLooseEqual(jsTypeOf(c.StoreEncrypted), "boolean")`) {
+		t.Fatalf("missing typeof/equality rendering")
 	}
 }

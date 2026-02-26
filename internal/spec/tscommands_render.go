@@ -24,6 +24,16 @@ func RenderCommandRequestsGo(pkg string, commands []TSCommand) ([]byte, error) {
 	b.WriteString("\n\n")
 
 	for _, cmd := range commands {
+		renderCtx := newCmdRenderCtx(cmd.Fields)
+		ast, err := parseCmdExpression(cmd.ExprJS)
+		if err != nil {
+			return nil, fmt.Errorf("parse command %s expression: %w", cmd.Name, err)
+		}
+		goExpr, err := renderCommandString(ast, renderCtx)
+		if err != nil {
+			return nil, fmt.Errorf("render command %s expression: %w", cmd.Name, err)
+		}
+
 		b.WriteString("type ")
 		b.WriteString(cmd.Name)
 		b.WriteString(" struct {\n")
@@ -41,9 +51,9 @@ func RenderCommandRequestsGo(pkg string, commands []TSCommand) ([]byte, error) {
 		b.WriteString("func (c ")
 		b.WriteString(cmd.Name)
 		b.WriteString(") CommandString() string {\n")
-		b.WriteString("\treturn evalCommandExpression(`")
-		b.WriteString(cmd.ExprJS)
-		b.WriteString("`, c)\n")
+		b.WriteString("\treturn ")
+		b.WriteString(goExpr)
+		b.WriteString("\n")
 		b.WriteString("}\n\n")
 	}
 
@@ -52,6 +62,200 @@ func RenderCommandRequestsGo(pkg string, commands []TSCommand) ([]byte, error) {
 		return nil, fmt.Errorf("format generated requests: %w", err)
 	}
 	return src, nil
+}
+
+type cmdRenderCtx struct {
+	fieldByTSName map[string]string
+}
+
+func newCmdRenderCtx(fields []TSField) cmdRenderCtx {
+	m := make(map[string]string, len(fields))
+	for _, f := range fields {
+		m[f.Name] = goCmdFieldName(f.Name)
+	}
+	return cmdRenderCtx{fieldByTSName: m}
+}
+
+func renderCommandString(expr cmdExpr, ctx cmdRenderCtx) (string, error) {
+	switch n := expr.(type) {
+	case *cmdStringExpr:
+		return strconv.Quote(n.Value), nil
+	case *cmdBinaryExpr:
+		if n.Op != "+" {
+			v, err := renderCommandValue(expr, ctx)
+			if err != nil {
+				return "", err
+			}
+			return "jsToString(" + v + ")", nil
+		}
+		left, err := renderCommandString(n.Left, ctx)
+		if err != nil {
+			return "", err
+		}
+		right, err := renderCommandString(n.Right, ctx)
+		if err != nil {
+			return "", err
+		}
+		return left + " + " + right, nil
+	case *cmdConditionalExpr:
+		cond, err := renderCommandCondition(n.Cond, ctx)
+		if err != nil {
+			return "", err
+		}
+		whenTrue, err := renderCommandString(n.WhenTrue, ctx)
+		if err != nil {
+			return "", err
+		}
+		whenFalse, err := renderCommandString(n.WhenFalse, ctx)
+		if err != nil {
+			return "", err
+		}
+		return "ternaryString(" + cond + ", " + whenTrue + ", " + whenFalse + ")", nil
+	case *cmdCallExpr:
+		return renderCommandCall(n, ctx)
+	default:
+		v, err := renderCommandValue(expr, ctx)
+		if err != nil {
+			return "", err
+		}
+		return "jsToString(" + v + ")", nil
+	}
+}
+
+func renderCommandCondition(expr cmdExpr, ctx cmdRenderCtx) (string, error) {
+	if n, ok := expr.(*cmdBinaryExpr); ok && n.Op == "==" {
+		left, err := renderCommandValue(n.Left, ctx)
+		if err != nil {
+			return "", err
+		}
+		right, err := renderCommandValue(n.Right, ctx)
+		if err != nil {
+			return "", err
+		}
+		return "jsLooseEqual(" + left + ", " + right + ")", nil
+	}
+	v, err := renderCommandValue(expr, ctx)
+	if err != nil {
+		return "", err
+	}
+	return "jsTruthy(" + v + ")", nil
+}
+
+func renderCommandValue(expr cmdExpr, ctx cmdRenderCtx) (string, error) {
+	switch n := expr.(type) {
+	case *cmdStringExpr:
+		return strconv.Quote(n.Value), nil
+	case *cmdNumberExpr:
+		return n.Value, nil
+	case *cmdBoolExpr:
+		if n.Value {
+			return "true", nil
+		}
+		return "false", nil
+	case *cmdNullExpr:
+		return "nil", nil
+	case *cmdIdentExpr:
+		return "", fmt.Errorf("unsupported bare identifier %q", n.Name)
+	case *cmdMemberExpr:
+		target, ok := n.Target.(*cmdIdentExpr)
+		if !ok || target.Name != "self" {
+			return "", fmt.Errorf("unsupported member access")
+		}
+		field, ok := ctx.fieldByTSName[n.Name]
+		if !ok {
+			return "", fmt.Errorf("unknown self field %q", n.Name)
+		}
+		return "c." + field, nil
+	case *cmdCallExpr:
+		return renderCommandCall(n, ctx)
+	case *cmdTypeofExpr:
+		v, err := renderCommandValue(n.Expr, ctx)
+		if err != nil {
+			return "", err
+		}
+		return "jsTypeOf(" + v + ")", nil
+	case *cmdBinaryExpr:
+		switch n.Op {
+		case "+":
+			return renderCommandString(n, ctx)
+		case "==":
+			left, err := renderCommandValue(n.Left, ctx)
+			if err != nil {
+				return "", err
+			}
+			right, err := renderCommandValue(n.Right, ctx)
+			if err != nil {
+				return "", err
+			}
+			return "jsLooseEqual(" + left + ", " + right + ")", nil
+		default:
+			return "", fmt.Errorf("unsupported binary operator %q", n.Op)
+		}
+	case *cmdConditionalExpr:
+		cond, err := renderCommandCondition(n.Cond, ctx)
+		if err != nil {
+			return "", err
+		}
+		whenTrue, err := renderCommandValue(n.WhenTrue, ctx)
+		if err != nil {
+			return "", err
+		}
+		whenFalse, err := renderCommandValue(n.WhenFalse, ctx)
+		if err != nil {
+			return "", err
+		}
+		return "ternaryAny(" + cond + ", " + whenTrue + ", " + whenFalse + ")", nil
+	default:
+		return "", fmt.Errorf("unsupported expression node %T", expr)
+	}
+}
+
+func renderCommandCall(call *cmdCallExpr, ctx cmdRenderCtx) (string, error) {
+	member, ok := call.Callee.(*cmdMemberExpr)
+	if !ok {
+		return "", fmt.Errorf("unsupported function call")
+	}
+
+	if ident, ok := member.Target.(*cmdIdentExpr); ok && ident.Name == "JSON" {
+		if member.Name != "stringify" {
+			return "", fmt.Errorf("unsupported JSON method %q", member.Name)
+		}
+		if len(call.Args) != 1 {
+			return "", fmt.Errorf("JSON.stringify expects 1 argument")
+		}
+		arg, err := renderCommandValue(call.Args[0], ctx)
+		if err != nil {
+			return "", err
+		}
+		return "mustJSON(" + arg + ")", nil
+	}
+
+	receiver, err := renderCommandValue(member.Target, ctx)
+	if err != nil {
+		return "", err
+	}
+	switch member.Name {
+	case "toString":
+		if len(call.Args) != 0 {
+			return "", fmt.Errorf("toString expects no arguments")
+		}
+		return "jsToString(" + receiver + ")", nil
+	case "join":
+		if len(call.Args) > 1 {
+			return "", fmt.Errorf("join expects up to 1 argument")
+		}
+		sep := strconv.Quote(",")
+		if len(call.Args) == 1 {
+			sepExpr, err := renderCommandString(call.Args[0], ctx)
+			if err != nil {
+				return "", err
+			}
+			sep = sepExpr
+		}
+		return "jsJoin(" + receiver + ", " + sep + ")", nil
+	default:
+		return "", fmt.Errorf("unsupported method call %q", member.Name)
+	}
 }
 
 func mapTSCommandType(f TSField) string {
