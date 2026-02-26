@@ -7,6 +7,7 @@ import (
 
 	"github.com/Malomalsky/go-simplex/sdk/client"
 	"github.com/Malomalsky/go-simplex/sdk/protocol"
+	"github.com/Malomalsky/go-simplex/sdk/types"
 )
 
 type Handler func(ctx context.Context, cli *client.Client, msg protocol.Message) error
@@ -40,6 +41,10 @@ func (r *Runtime) On(eventType string, h Handler) {
 	r.mu.Lock()
 	r.handlers[eventType] = append(r.handlers[eventType], h)
 	r.mu.Unlock()
+}
+
+func (r *Runtime) OnEvent(eventType types.EventType, h Handler) {
+	r.On(string(eventType), h)
 }
 
 func (r *Runtime) OnAny(h Handler) {

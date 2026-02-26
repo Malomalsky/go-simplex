@@ -78,3 +78,14 @@ Runnable example:
 ```bash
 go run ./examples/echo
 ```
+
+The generator currently reads:
+
+- `spec/upstream/COMMANDS.md`
+- `spec/upstream/events.ts`
+- `spec/upstream/responses.ts`
+
+and produces:
+
+- `sdk/command/generated_catalog.go`
+- `sdk/types/generated_tags.go`

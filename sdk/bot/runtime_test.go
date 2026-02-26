@@ -9,6 +9,7 @@ import (
 
 	"github.com/Malomalsky/go-simplex/sdk/client"
 	"github.com/Malomalsky/go-simplex/sdk/protocol"
+	"github.com/Malomalsky/go-simplex/sdk/types"
 )
 
 var errTestClosed = errors.New("test transport closed")
@@ -86,6 +87,9 @@ func TestRuntimeDispatch(t *testing.T) {
 		mu.Lock()
 		called = append(called, "any")
 		mu.Unlock()
+		return nil
+	})
+	rt.OnEvent(types.EventTypeContactUpdated, func(ctx context.Context, cli *client.Client, msg protocol.Message) error {
 		return nil
 	})
 

@@ -43,14 +43,14 @@ func (c *Client) GetActiveUser(ctx context.Context) (*types.User, error) {
 		return nil, err
 	}
 
-	switch msg.Resp.Type {
-	case "activeUser":
+	switch types.ResponseType(msg.Resp.Type) {
+	case types.ResponseTypeActiveUser:
 		var resp types.ActiveUserResp
 		if err := msg.Resp.Decode(&resp); err != nil {
 			return nil, err
 		}
 		return &resp.User, nil
-	case "chatCmdError":
+	case types.ResponseTypeChatCmdError:
 		return nil, &CommandError{ResponseType: msg.Resp.Type, Payload: append([]byte(nil), msg.Resp.Raw...)}
 	default:
 		return nil, fmt.Errorf("unexpected response type: %s", msg.Resp.Type)
@@ -63,14 +63,14 @@ func (c *Client) GetUserAddress(ctx context.Context, userID int64) (string, erro
 		return "", err
 	}
 
-	switch msg.Resp.Type {
-	case "userContactLink":
+	switch types.ResponseType(msg.Resp.Type) {
+	case types.ResponseTypeUserContactLink:
 		var resp types.UserContactLinkResp
 		if err := msg.Resp.Decode(&resp); err != nil {
 			return "", err
 		}
 		return resp.ContactLink.ConnLinkContact.PreferredLink(), nil
-	case "chatCmdError":
+	case types.ResponseTypeChatCmdError:
 		return "", &CommandError{ResponseType: msg.Resp.Type, Payload: append([]byte(nil), msg.Resp.Raw...)}
 	default:
 		return "", fmt.Errorf("unexpected response type: %s", msg.Resp.Type)
@@ -83,14 +83,14 @@ func (c *Client) CreateUserAddress(ctx context.Context, userID int64) (string, e
 		return "", err
 	}
 
-	switch msg.Resp.Type {
-	case "userContactLinkCreated":
+	switch types.ResponseType(msg.Resp.Type) {
+	case types.ResponseTypeUserContactLinkCreated:
 		var resp types.UserContactLinkCreatedResp
 		if err := msg.Resp.Decode(&resp); err != nil {
 			return "", err
 		}
 		return resp.ConnLinkContact.PreferredLink(), nil
-	case "chatCmdError":
+	case types.ResponseTypeChatCmdError:
 		return "", &CommandError{ResponseType: msg.Resp.Type, Payload: append([]byte(nil), msg.Resp.Raw...)}
 	default:
 		return "", fmt.Errorf("unexpected response type: %s", msg.Resp.Type)
@@ -127,10 +127,10 @@ func (c *Client) EnableAddressAutoAccept(ctx context.Context, userID int64) erro
 		return err
 	}
 
-	switch msg.Resp.Type {
-	case "userContactLinkUpdated":
+	switch types.ResponseType(msg.Resp.Type) {
+	case types.ResponseTypeUserContactLinkUpdated:
 		return nil
-	case "chatCmdError":
+	case types.ResponseTypeChatCmdError:
 		return &CommandError{ResponseType: msg.Resp.Type, Payload: append([]byte(nil), msg.Resp.Raw...)}
 	default:
 		return fmt.Errorf("unexpected response type: %s", msg.Resp.Type)
@@ -157,10 +157,10 @@ func (c *Client) SendTextMessage(ctx context.Context, sendRef string, text strin
 		return err
 	}
 
-	switch msg.Resp.Type {
-	case "newChatItems":
+	switch types.ResponseType(msg.Resp.Type) {
+	case types.ResponseTypeNewChatItems:
 		return nil
-	case "chatCmdError":
+	case types.ResponseTypeChatCmdError:
 		return &CommandError{ResponseType: msg.Resp.Type, Payload: append([]byte(nil), msg.Resp.Raw...)}
 	default:
 		return fmt.Errorf("unexpected response type: %s", msg.Resp.Type)
