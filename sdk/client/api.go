@@ -44,6 +44,35 @@ type UpdateChatItemSummary struct {
 	ChatItem     types.AChatItem
 }
 
+type ChatDeleteMode string
+
+type DeleteChatSummary struct {
+	ResponseType types.ResponseType
+	Contact      *types.Contact
+	Connection   json.RawMessage
+	GroupInfo    json.RawMessage
+}
+
+type ReceiveFileOptions struct {
+	UserApprovedRelays bool
+	StoreEncrypted     *bool
+	Inline             *bool
+	Path               *string
+}
+
+type ReceiveFileSummary struct {
+	ResponseType types.ResponseType
+	ChatItem     *types.AChatItem
+	Transfer     json.RawMessage
+}
+
+type CancelFileSummary struct {
+	ResponseType types.ResponseType
+	ChatItem     *types.AChatItem
+	Transfer     json.RawMessage
+	Transfers    []json.RawMessage
+}
+
 func (e *CommandError) Error() string {
 	return fmt.Sprintf("chat command error response: %s", e.ResponseType)
 }
@@ -121,6 +150,40 @@ func (c *Client) DeleteUserAddress(ctx context.Context, userID int64) error {
 		return err
 	}
 	if result.UserContactLinkDeleted != nil {
+		return nil
+	}
+	if result.ChatCmdError != nil {
+		return commandErrorFromRaw(result.Message.Resp.Type, result.Message.Resp.Raw)
+	}
+	return fmt.Errorf("missing response payload for %s", result.Message.Resp.Type)
+}
+
+func (c *Client) SetProfileAddress(ctx context.Context, userID int64, enable bool) error {
+	result, err := c.SendAPISetProfileAddress(ctx, command.APISetProfileAddress{
+		UserId: userID,
+		Enable: enable,
+	})
+	if err != nil {
+		return err
+	}
+	if result.UserProfileUpdated != nil {
+		return nil
+	}
+	if result.ChatCmdError != nil {
+		return commandErrorFromRaw(result.Message.Resp.Type, result.Message.Resp.Raw)
+	}
+	return fmt.Errorf("missing response payload for %s", result.Message.Resp.Type)
+}
+
+func (c *Client) SetAddressSettings(ctx context.Context, userID int64, settings map[string]any) error {
+	result, err := c.SendAPISetAddressSettings(ctx, command.APISetAddressSettings{
+		UserId:   userID,
+		Settings: settings,
+	})
+	if err != nil {
+		return err
+	}
+	if result.UserContactLinkUpdated != nil {
 		return nil
 	}
 	if result.ChatCmdError != nil {
@@ -605,21 +668,7 @@ func (c *Client) EnableAddressAutoAccept(ctx context.Context, userID int64) erro
 			"acceptIncognito": false,
 		},
 	}
-
-	result, err := c.SendAPISetAddressSettings(ctx, command.APISetAddressSettings{
-		UserId:   userID,
-		Settings: settings,
-	})
-	if err != nil {
-		return err
-	}
-	if result.UserContactLinkUpdated != nil {
-		return nil
-	}
-	if result.ChatCmdError != nil {
-		return commandErrorFromRaw(result.Message.Resp.Type, result.Message.Resp.Raw)
-	}
-	return fmt.Errorf("missing response payload for %s", result.Message.Resp.Type)
+	return c.SetAddressSettings(ctx, userID, settings)
 }
 
 func (c *Client) SendTextMessage(ctx context.Context, sendRef string, text string) error {
@@ -802,6 +851,132 @@ func (c *Client) AddChatItemReaction(ctx context.Context, chatRef string, chatIt
 
 func (c *Client) RemoveChatItemReaction(ctx context.Context, chatRef string, chatItemID int64, reaction map[string]any) (*types.ResponseChatItemReaction, error) {
 	return c.SetChatItemReaction(ctx, chatRef, chatItemID, false, reaction)
+}
+
+func (c *Client) DeleteChat(ctx context.Context, chatRef string, mode ChatDeleteMode) (*DeleteChatSummary, error) {
+	if mode == "" {
+		return nil, fmt.Errorf("chat delete mode is empty")
+	}
+
+	result, err := c.SendAPIDeleteChat(ctx, command.APIDeleteChat{
+		ChatRef:        chatRef,
+		ChatDeleteMode: string(mode),
+	})
+	if err != nil {
+		return nil, err
+	}
+	if result.ContactDeleted != nil {
+		contact := result.ContactDeleted.Contact
+		return &DeleteChatSummary{
+			ResponseType: types.ResponseTypeContactDeleted,
+			Contact:      &contact,
+		}, nil
+	}
+	if result.ContactConnectionDeleted != nil {
+		return &DeleteChatSummary{
+			ResponseType: types.ResponseTypeContactConnectionDeleted,
+			Connection:   copyRaw(result.ContactConnectionDeleted.Connection),
+		}, nil
+	}
+	if result.GroupDeletedUser != nil {
+		return &DeleteChatSummary{
+			ResponseType: types.ResponseTypeGroupDeletedUser,
+			GroupInfo:    copyRaw(result.GroupDeletedUser.GroupInfo),
+		}, nil
+	}
+	if result.ChatCmdError != nil {
+		return nil, commandErrorFromRaw(result.Message.Resp.Type, result.Message.Resp.Raw)
+	}
+	return nil, fmt.Errorf("missing response payload for %s", result.Message.Resp.Type)
+}
+
+func (c *Client) DeleteContactChat(ctx context.Context, contactID int64, mode ChatDeleteMode) (*DeleteChatSummary, error) {
+	return c.DeleteChat(ctx, command.DirectRef(contactID), mode)
+}
+
+func (c *Client) DeleteGroupChat(ctx context.Context, groupID int64, mode ChatDeleteMode) (*DeleteChatSummary, error) {
+	return c.DeleteChat(ctx, command.GroupRef(groupID), mode)
+}
+
+func (c *Client) ReceiveFile(ctx context.Context, fileID int64, options ReceiveFileOptions) (*ReceiveFileSummary, error) {
+	result, err := c.SendReceiveFile(ctx, command.ReceiveFile{
+		FileId:             fileID,
+		UserApprovedRelays: options.UserApprovedRelays,
+		StoreEncrypted:     options.StoreEncrypted,
+		FileInline:         options.Inline,
+		FilePath:           options.Path,
+	})
+	if err != nil {
+		return nil, err
+	}
+	if result.RcvFileAccepted != nil {
+		chatItem := result.RcvFileAccepted.ChatItem
+		return &ReceiveFileSummary{
+			ResponseType: types.ResponseTypeRcvFileAccepted,
+			ChatItem:     &chatItem,
+		}, nil
+	}
+	if result.RcvFileAcceptedSndCancelled != nil {
+		return &ReceiveFileSummary{
+			ResponseType: types.ResponseTypeRcvFileAcceptedSndCancelled,
+			Transfer:     copyRaw(result.RcvFileAcceptedSndCancelled.RcvFileTransfer),
+		}, nil
+	}
+	if result.ChatCmdError != nil {
+		return nil, commandErrorFromRaw(result.Message.Resp.Type, result.Message.Resp.Raw)
+	}
+	return nil, fmt.Errorf("missing response payload for %s", result.Message.Resp.Type)
+}
+
+func (c *Client) CancelFile(ctx context.Context, fileID int64) (*CancelFileSummary, error) {
+	result, err := c.SendCancelFile(ctx, command.CancelFile{FileId: fileID})
+	if err != nil {
+		return nil, err
+	}
+	if result.SndFileCancelled != nil {
+		var chatItem *types.AChatItem
+		if result.SndFileCancelled.ChatItem_ != nil {
+			item := *result.SndFileCancelled.ChatItem_
+			chatItem = &item
+		}
+		return &CancelFileSummary{
+			ResponseType: types.ResponseTypeSndFileCancelled,
+			ChatItem:     chatItem,
+			Transfer:     copyRaw(result.SndFileCancelled.FileTransferMeta),
+			Transfers:    copyRawSlice(result.SndFileCancelled.SndFileTransfers),
+		}, nil
+	}
+	if result.RcvFileCancelled != nil {
+		var chatItem *types.AChatItem
+		if result.RcvFileCancelled.ChatItem_ != nil {
+			item := *result.RcvFileCancelled.ChatItem_
+			chatItem = &item
+		}
+		return &CancelFileSummary{
+			ResponseType: types.ResponseTypeRcvFileCancelled,
+			ChatItem:     chatItem,
+			Transfer:     copyRaw(result.RcvFileCancelled.RcvFileTransfer),
+		}, nil
+	}
+	if result.ChatCmdError != nil {
+		return nil, commandErrorFromRaw(result.Message.Resp.Type, result.Message.Resp.Raw)
+	}
+	return nil, fmt.Errorf("missing response payload for %s", result.Message.Resp.Type)
+}
+
+func copyRaw(raw json.RawMessage) json.RawMessage {
+	return append([]byte(nil), raw...)
+}
+
+func copyRawSlice(rawList []json.RawMessage) []json.RawMessage {
+	if len(rawList) == 0 {
+		return nil
+	}
+	out := make([]json.RawMessage, 0, len(rawList))
+	for _, raw := range rawList {
+		out = append(out, copyRaw(raw))
+	}
+	return out
 }
 
 func connectSummaryFromAPIConnectResult(result APIConnectResult) (*ConnectSummary, error) {

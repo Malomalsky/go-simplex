@@ -1686,3 +1686,362 @@ func TestSetChatItemReactionNilPayload(t *testing.T) {
 		t.Fatalf("expected nil reaction error")
 	}
 }
+
+func TestSetProfileAddress(t *testing.T) {
+	t.Parallel()
+
+	transport := newMockTransport()
+	c, err := New(transport)
+	if err != nil {
+		t.Fatalf("new client: %v", err)
+	}
+	defer c.Close(context.Background())
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	done := make(chan string, 1)
+	go func() {
+		rawReq := <-transport.writeCh
+		var req struct {
+			CorrID string `json:"corrId"`
+			Cmd    string `json:"cmd"`
+		}
+		_ = json.Unmarshal(rawReq, &req)
+		done <- req.Cmd
+		transport.readCh <- []byte(`{
+			"corrId":"` + req.CorrID + `",
+			"resp":{
+				"type":"userProfileUpdated",
+				"user":{"userId":1,"profile":{"displayName":"bot"}},
+				"fromProfile":{"displayName":"bot"},
+				"toProfile":{"displayName":"bot"},
+				"updateSummary":{}
+			}
+		}`)
+	}()
+
+	if err := c.SetProfileAddress(ctx, 1, true); err != nil {
+		t.Fatalf("SetProfileAddress: %v", err)
+	}
+
+	cmd := <-done
+	if !strings.HasPrefix(cmd, "/_profile_address 1 on") {
+		t.Fatalf("unexpected profile-address command: %q", cmd)
+	}
+}
+
+func TestSetAddressSettings(t *testing.T) {
+	t.Parallel()
+
+	transport := newMockTransport()
+	c, err := New(transport)
+	if err != nil {
+		t.Fatalf("new client: %v", err)
+	}
+	defer c.Close(context.Background())
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	done := make(chan string, 1)
+	go func() {
+		rawReq := <-transport.writeCh
+		var req struct {
+			CorrID string `json:"corrId"`
+			Cmd    string `json:"cmd"`
+		}
+		_ = json.Unmarshal(rawReq, &req)
+		done <- req.Cmd
+		transport.readCh <- []byte(`{
+			"corrId":"` + req.CorrID + `",
+			"resp":{
+				"type":"userContactLinkUpdated",
+				"user":{"userId":1,"profile":{"displayName":"bot"}},
+				"contactLink":{"connLinkContact":{"connFullLink":"smp://full","connShortLink":"smp://short"}}
+			}
+		}`)
+	}()
+
+	if err := c.SetAddressSettings(ctx, 1, map[string]any{"businessAddress": true}); err != nil {
+		t.Fatalf("SetAddressSettings: %v", err)
+	}
+
+	cmd := <-done
+	if !strings.HasPrefix(cmd, "/_address_settings 1 ") {
+		t.Fatalf("unexpected address-settings command: %q", cmd)
+	}
+}
+
+func TestDeleteChat(t *testing.T) {
+	t.Parallel()
+
+	transport := newMockTransport()
+	c, err := New(transport)
+	if err != nil {
+		t.Fatalf("new client: %v", err)
+	}
+	defer c.Close(context.Background())
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	done := make(chan string, 1)
+	go func() {
+		rawReq := <-transport.writeCh
+		var req struct {
+			CorrID string `json:"corrId"`
+			Cmd    string `json:"cmd"`
+		}
+		_ = json.Unmarshal(rawReq, &req)
+		done <- req.Cmd
+		transport.readCh <- []byte(`{
+			"corrId":"` + req.CorrID + `",
+			"resp":{
+				"type":"contactDeleted",
+				"user":{"userId":1,"profile":{"displayName":"bot"}},
+				"contact":{"contactId":42,"profile":{"displayName":"alice"}}
+			}
+		}`)
+	}()
+
+	res, err := c.DeleteChat(ctx, "@42", ChatDeleteMode("entity"))
+	if err != nil {
+		t.Fatalf("DeleteChat: %v", err)
+	}
+
+	cmd := <-done
+	if res.ResponseType != types.ResponseTypeContactDeleted {
+		t.Fatalf("unexpected delete-chat response: %s", res.ResponseType)
+	}
+	if res.Contact == nil || res.Contact.ContactID != 42 {
+		t.Fatalf("unexpected deleted contact payload: %+v", res.Contact)
+	}
+	if !strings.HasPrefix(cmd, "/_delete @42 entity") {
+		t.Fatalf("unexpected delete-chat command: %q", cmd)
+	}
+}
+
+func TestDeleteChatEmptyMode(t *testing.T) {
+	t.Parallel()
+
+	transport := newMockTransport()
+	c, err := New(transport)
+	if err != nil {
+		t.Fatalf("new client: %v", err)
+	}
+	defer c.Close(context.Background())
+
+	if _, err := c.DeleteChat(context.Background(), "@42", ""); err == nil {
+		t.Fatalf("expected empty mode error")
+	}
+}
+
+func TestReceiveFileAccepted(t *testing.T) {
+	t.Parallel()
+
+	transport := newMockTransport()
+	c, err := New(transport)
+	if err != nil {
+		t.Fatalf("new client: %v", err)
+	}
+	defer c.Close(context.Background())
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	enc := true
+	inline := false
+	path := "/tmp/file.bin"
+
+	done := make(chan string, 1)
+	go func() {
+		rawReq := <-transport.writeCh
+		var req struct {
+			CorrID string `json:"corrId"`
+			Cmd    string `json:"cmd"`
+		}
+		_ = json.Unmarshal(rawReq, &req)
+		done <- req.Cmd
+		transport.readCh <- []byte(`{
+			"corrId":"` + req.CorrID + `",
+			"resp":{
+				"type":"rcvFileAccepted",
+				"user":{"userId":1,"profile":{"displayName":"bot"}},
+				"chatItem":{
+					"chatInfo":{"type":"direct","contact":{"contactId":42}},
+					"chatItem":{"content":{"type":"rcvMsgContent","msgContent":{"type":"text","text":"file"}}}
+				}
+			}
+		}`)
+	}()
+
+	res, err := c.ReceiveFile(ctx, 99, ReceiveFileOptions{
+		UserApprovedRelays: true,
+		StoreEncrypted:     &enc,
+		Inline:             &inline,
+		Path:               &path,
+	})
+	if err != nil {
+		t.Fatalf("ReceiveFile: %v", err)
+	}
+
+	cmd := <-done
+	if res.ResponseType != types.ResponseTypeRcvFileAccepted {
+		t.Fatalf("unexpected receive-file response: %s", res.ResponseType)
+	}
+	if res.ChatItem == nil {
+		t.Fatalf("expected chat item payload")
+	}
+	if !strings.HasPrefix(cmd, "/freceive 99 approved_relays=on encrypt=on inline=off /tmp/file.bin") {
+		t.Fatalf("unexpected receive-file command: %q", cmd)
+	}
+}
+
+func TestReceiveFileAcceptedSndCancelled(t *testing.T) {
+	t.Parallel()
+
+	transport := newMockTransport()
+	c, err := New(transport)
+	if err != nil {
+		t.Fatalf("new client: %v", err)
+	}
+	defer c.Close(context.Background())
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	done := make(chan struct{})
+	go func() {
+		rawReq := <-transport.writeCh
+		var req struct {
+			CorrID string `json:"corrId"`
+		}
+		_ = json.Unmarshal(rawReq, &req)
+		transport.readCh <- []byte(`{
+			"corrId":"` + req.CorrID + `",
+			"resp":{
+				"type":"rcvFileAcceptedSndCancelled",
+				"user":{"userId":1,"profile":{"displayName":"bot"}},
+				"rcvFileTransfer":{"id":"rcv-1"}
+			}
+		}`)
+		close(done)
+	}()
+
+	res, err := c.ReceiveFile(ctx, 100, ReceiveFileOptions{})
+	if err != nil {
+		t.Fatalf("ReceiveFile: %v", err)
+	}
+	<-done
+
+	if res.ResponseType != types.ResponseTypeRcvFileAcceptedSndCancelled {
+		t.Fatalf("unexpected receive-file response: %s", res.ResponseType)
+	}
+	if string(res.Transfer) == "" {
+		t.Fatalf("expected transfer payload")
+	}
+}
+
+func TestCancelFileSndFileCancelled(t *testing.T) {
+	t.Parallel()
+
+	transport := newMockTransport()
+	c, err := New(transport)
+	if err != nil {
+		t.Fatalf("new client: %v", err)
+	}
+	defer c.Close(context.Background())
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	done := make(chan string, 1)
+	go func() {
+		rawReq := <-transport.writeCh
+		var req struct {
+			CorrID string `json:"corrId"`
+			Cmd    string `json:"cmd"`
+		}
+		_ = json.Unmarshal(rawReq, &req)
+		done <- req.Cmd
+		transport.readCh <- []byte(`{
+			"corrId":"` + req.CorrID + `",
+			"resp":{
+				"type":"sndFileCancelled",
+				"user":{"userId":1,"profile":{"displayName":"bot"}},
+				"chatItem_":{"chatInfo":{"type":"direct","contact":{"contactId":42}},"chatItem":{"content":{"type":"rcvMsgContent","msgContent":{"type":"text","text":"file"}}}},
+				"fileTransferMeta":{"id":"snd-1"},
+				"sndFileTransfers":[{"id":"s1"}]
+			}
+		}`)
+	}()
+
+	res, err := c.CancelFile(ctx, 77)
+	if err != nil {
+		t.Fatalf("CancelFile: %v", err)
+	}
+	cmd := <-done
+
+	if res.ResponseType != types.ResponseTypeSndFileCancelled {
+		t.Fatalf("unexpected cancel-file response: %s", res.ResponseType)
+	}
+	if res.ChatItem == nil {
+		t.Fatalf("expected chat item payload")
+	}
+	if len(res.Transfers) != 1 {
+		t.Fatalf("unexpected transfers count: %d", len(res.Transfers))
+	}
+	if !strings.HasPrefix(cmd, "/fcancel 77") {
+		t.Fatalf("unexpected cancel-file command: %q", cmd)
+	}
+}
+
+func TestCancelFileRcvFileCancelled(t *testing.T) {
+	t.Parallel()
+
+	transport := newMockTransport()
+	c, err := New(transport)
+	if err != nil {
+		t.Fatalf("new client: %v", err)
+	}
+	defer c.Close(context.Background())
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	done := make(chan struct{})
+	go func() {
+		rawReq := <-transport.writeCh
+		var req struct {
+			CorrID string `json:"corrId"`
+		}
+		_ = json.Unmarshal(rawReq, &req)
+		transport.readCh <- []byte(`{
+			"corrId":"` + req.CorrID + `",
+			"resp":{
+				"type":"rcvFileCancelled",
+				"user":{"userId":1,"profile":{"displayName":"bot"}},
+				"chatItem_":{"chatInfo":{"type":"direct","contact":{"contactId":42}},"chatItem":{"content":{"type":"rcvMsgContent","msgContent":{"type":"text","text":"file"}}}},
+				"rcvFileTransfer":{"id":"rcv-1"}
+			}
+		}`)
+		close(done)
+	}()
+
+	res, err := c.CancelFile(ctx, 78)
+	if err != nil {
+		t.Fatalf("CancelFile: %v", err)
+	}
+	<-done
+
+	if res.ResponseType != types.ResponseTypeRcvFileCancelled {
+		t.Fatalf("unexpected cancel-file response: %s", res.ResponseType)
+	}
+	if res.ChatItem == nil {
+		t.Fatalf("expected chat item payload")
+	}
+	if string(res.Transfer) == "" {
+		t.Fatalf("expected transfer payload")
+	}
+}

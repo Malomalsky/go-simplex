@@ -82,6 +82,8 @@ High-level helper methods currently available on `*client.Client`:
 - `GetUserAddress`
 - `CreateUserAddress`
 - `DeleteUserAddress`
+- `SetProfileAddress`
+- `SetAddressSettings`
 - `EnsureUserAddress`
 - `ListContacts`
 - `ListGroups`
@@ -126,9 +128,14 @@ High-level helper methods currently available on `*client.Client`:
 - `DeleteChatItemsInContact`
 - `DeleteChatItemsInGroup`
 - `ModerateDeleteGroupChatItems`
+- `DeleteChat`
+- `DeleteContactChat`
+- `DeleteGroupChat`
 - `SetChatItemReaction`
 - `AddChatItemReaction`
 - `RemoveChatItemReaction`
+- `ReceiveFile`
+- `CancelFile`
 
 Runnable example:
 
