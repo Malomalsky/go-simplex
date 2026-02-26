@@ -31,6 +31,12 @@ Run tests:
 go test ./...
 ```
 
+Smoke check against running SimpleX CLI websocket:
+
+```bash
+go run ./cmd/simplex-smoke --ws ws://localhost:5225
+```
+
 ## Quickstart (current API)
 
 Run SimpleX CLI with websocket API:
