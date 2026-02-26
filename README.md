@@ -80,6 +80,9 @@ High-level helper methods currently available on `*client.Client`:
 - `EnsureUserAddress`
 - `ListContacts`
 - `ListGroups`
+- `CreateContactInvitation`
+- `AcceptContactRequest`
+- `RejectContactRequest`
 - `EnableAddressAutoAccept`
 - `SendTextMessage`
 - `SendTextToContact`

@@ -242,6 +242,123 @@ func TestListGroups(t *testing.T) {
 	}
 }
 
+func TestCreateContactInvitation(t *testing.T) {
+	t.Parallel()
+
+	transport := newMockTransport()
+	c, err := New(transport)
+	if err != nil {
+		t.Fatalf("new client: %v", err)
+	}
+	defer c.Close(context.Background())
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	done := make(chan struct{})
+	go func() {
+		rawReq := <-transport.writeCh
+		var req struct {
+			CorrID string `json:"corrId"`
+		}
+		_ = json.Unmarshal(rawReq, &req)
+		transport.readCh <- []byte(`{
+			"corrId":"` + req.CorrID + `",
+			"resp":{
+				"type":"invitation",
+				"user":{"userId":1,"profile":{"displayName":"bot"}},
+				"connLinkInvitation":{"connFullLink":"smp://full","connShortLink":"smp://short"},
+				"connection":{}
+			}
+		}`)
+		close(done)
+	}()
+
+	link, err := c.CreateContactInvitation(ctx, 1, false)
+	if err != nil {
+		t.Fatalf("CreateContactInvitation: %v", err)
+	}
+	<-done
+
+	if link != "smp://short" {
+		t.Fatalf("unexpected invitation link: %q", link)
+	}
+}
+
+func TestAcceptContactRequest(t *testing.T) {
+	t.Parallel()
+
+	transport := newMockTransport()
+	c, err := New(transport)
+	if err != nil {
+		t.Fatalf("new client: %v", err)
+	}
+	defer c.Close(context.Background())
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	done := make(chan struct{})
+	go func() {
+		rawReq := <-transport.writeCh
+		var req struct {
+			CorrID string `json:"corrId"`
+		}
+		_ = json.Unmarshal(rawReq, &req)
+		transport.readCh <- []byte(`{
+			"corrId":"` + req.CorrID + `",
+			"resp":{
+				"type":"acceptingContactRequest",
+				"user":{"userId":1,"profile":{"displayName":"bot"}},
+				"contact":{"contactId":42,"profile":{"displayName":"alice"}}
+			}
+		}`)
+		close(done)
+	}()
+
+	if err := c.AcceptContactRequest(ctx, 1001); err != nil {
+		t.Fatalf("AcceptContactRequest: %v", err)
+	}
+	<-done
+}
+
+func TestRejectContactRequest(t *testing.T) {
+	t.Parallel()
+
+	transport := newMockTransport()
+	c, err := New(transport)
+	if err != nil {
+		t.Fatalf("new client: %v", err)
+	}
+	defer c.Close(context.Background())
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	done := make(chan struct{})
+	go func() {
+		rawReq := <-transport.writeCh
+		var req struct {
+			CorrID string `json:"corrId"`
+		}
+		_ = json.Unmarshal(rawReq, &req)
+		transport.readCh <- []byte(`{
+			"corrId":"` + req.CorrID + `",
+			"resp":{
+				"type":"contactRequestRejected",
+				"user":{"userId":1,"profile":{"displayName":"bot"}},
+				"contactRequest":{"id":1001}
+			}
+		}`)
+		close(done)
+	}()
+
+	if err := c.RejectContactRequest(ctx, 1001); err != nil {
+		t.Fatalf("RejectContactRequest: %v", err)
+	}
+	<-done
+}
+
 func TestSendTextMessage(t *testing.T) {
 	t.Parallel()
 

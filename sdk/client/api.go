@@ -150,6 +150,51 @@ func (c *Client) ListGroups(ctx context.Context, userID int64, contactID *int64,
 	return nil, fmt.Errorf("missing response payload for %s", result.Message.Resp.Type)
 }
 
+func (c *Client) CreateContactInvitation(ctx context.Context, userID int64, incognito bool) (string, error) {
+	result, err := c.SendAPIAddContact(ctx, command.APIAddContact{
+		UserId:    userID,
+		Incognito: incognito,
+	})
+	if err != nil {
+		return "", err
+	}
+	if result.Invitation != nil {
+		return result.Invitation.ConnLinkInvitation.PreferredLink(), nil
+	}
+	if result.ChatCmdError != nil {
+		return "", commandErrorFromRaw(result.Message.Resp.Type, result.Message.Resp.Raw)
+	}
+	return "", fmt.Errorf("missing response payload for %s", result.Message.Resp.Type)
+}
+
+func (c *Client) AcceptContactRequest(ctx context.Context, contactReqID int64) error {
+	result, err := c.SendAPIAcceptContact(ctx, command.APIAcceptContact{ContactReqId: contactReqID})
+	if err != nil {
+		return err
+	}
+	if result.AcceptingContactRequest != nil {
+		return nil
+	}
+	if result.ChatCmdError != nil {
+		return commandErrorFromRaw(result.Message.Resp.Type, result.Message.Resp.Raw)
+	}
+	return fmt.Errorf("missing response payload for %s", result.Message.Resp.Type)
+}
+
+func (c *Client) RejectContactRequest(ctx context.Context, contactReqID int64) error {
+	result, err := c.SendAPIRejectContact(ctx, command.APIRejectContact{ContactReqId: contactReqID})
+	if err != nil {
+		return err
+	}
+	if result.ContactRequestRejected != nil {
+		return nil
+	}
+	if result.ChatCmdError != nil {
+		return commandErrorFromRaw(result.Message.Resp.Type, result.Message.Resp.Raw)
+	}
+	return fmt.Errorf("missing response payload for %s", result.Message.Resp.Type)
+}
+
 func (c *Client) EnableAddressAutoAccept(ctx context.Context, userID int64) error {
 	settings := map[string]any{
 		"businessAddress": false,
