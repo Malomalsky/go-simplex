@@ -52,4 +52,3 @@ func run(inputPath, outputPath, pkgName string) error {
 	}
 	return nil
 }
-

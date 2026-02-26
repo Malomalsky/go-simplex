@@ -22,4 +22,3 @@ type Definition struct {
 	Syntax       string
 	Parameters   []Parameter
 }
-

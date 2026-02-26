@@ -258,4 +258,3 @@ func normalizeBlock(lines []string) string {
 	}
 	return strings.TrimSpace(strings.Join(lines, "\n"))
 }
-

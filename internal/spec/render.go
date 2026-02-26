@@ -76,4 +76,3 @@ func networkUsageConst(u NetworkUsage) string {
 		return "NetworkUsageUnknown"
 	}
 }
-

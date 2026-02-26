@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Malomalsky/go-simplex/sdk/command"
 	"github.com/Malomalsky/go-simplex/sdk/protocol"
 )
 
@@ -106,6 +107,47 @@ func TestSendRawRoutesCorrelatedResponse(t *testing.T) {
 	}
 }
 
+func TestSendUsesTypedRequest(t *testing.T) {
+	t.Parallel()
+
+	transport := newMockTransport()
+	c, err := New(transport)
+	if err != nil {
+		t.Fatalf("new client: %v", err)
+	}
+	t.Cleanup(func() {
+		_ = c.Close(context.Background())
+	})
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	type sendResult struct {
+		msg protocol.Message
+		err error
+	}
+	resultCh := make(chan sendResult, 1)
+	go func() {
+		msg, sendErr := c.Send(ctx, command.ShowActiveUser{})
+		resultCh <- sendResult{msg: msg, err: sendErr}
+	}()
+
+	rawReq := <-transport.writeCh
+	var req protocol.CommandRequest
+	if err := json.Unmarshal(rawReq, &req); err != nil {
+		t.Fatalf("decode sent request: %v", err)
+	}
+	if req.Cmd != "/user" {
+		t.Fatalf("unexpected command string: %q", req.Cmd)
+	}
+
+	transport.readCh <- []byte(fmt.Sprintf(`{"corrId":"%s","resp":{"type":"activeUser","user":{"userId":1}}}`, req.CorrID))
+	res := <-resultCh
+	if res.err != nil {
+		t.Fatalf("send typed result error: %v", res.err)
+	}
+}
+
 func TestEventsAreDelivered(t *testing.T) {
 	t.Parallel()
 
@@ -156,4 +198,3 @@ func TestUnknownCorrIDReportsError(t *testing.T) {
 		t.Fatalf("timeout waiting for error event")
 	}
 }
-

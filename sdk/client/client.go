@@ -8,6 +8,7 @@ import (
 	"sync"
 	"sync/atomic"
 
+	"github.com/Malomalsky/go-simplex/sdk/command"
 	"github.com/Malomalsky/go-simplex/sdk/protocol"
 )
 
@@ -146,6 +147,13 @@ func (c *Client) SendRaw(ctx context.Context, cmd string) (protocol.Message, err
 	}
 }
 
+func (c *Client) Send(ctx context.Context, req command.Request) (protocol.Message, error) {
+	if req == nil {
+		return protocol.Message{}, fmt.Errorf("request is nil")
+	}
+	return c.SendRaw(ctx, req.CommandString())
+}
+
 func (c *Client) Close(ctx context.Context) error {
 	c.close()
 	select {
@@ -261,4 +269,3 @@ func (c *Client) ensureOpen() error {
 		return nil
 	}
 }
-

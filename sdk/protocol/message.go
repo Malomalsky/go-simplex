@@ -43,6 +43,16 @@ func (r *RawResponse) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
+func (r RawResponse) Decode(v any) error {
+	if len(r.Raw) == 0 {
+		return fmt.Errorf("raw response payload is empty")
+	}
+	if err := json.Unmarshal(r.Raw, v); err != nil {
+		return fmt.Errorf("decode raw response type=%s: %w", r.Type, err)
+	}
+	return nil
+}
+
 func EncodeRequest(req CommandRequest) ([]byte, error) {
 	if req.CorrID == "" {
 		return nil, fmt.Errorf("corrId is required")
@@ -64,4 +74,3 @@ func DecodeMessage(payload []byte) (Message, error) {
 	}
 	return msg, nil
 }
-

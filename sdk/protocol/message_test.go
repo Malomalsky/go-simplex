@@ -38,6 +38,19 @@ func TestDecodeMessage(t *testing.T) {
 	if got, want := msg.Resp.Type, "activeUser"; got != want {
 		t.Fatalf("resp type: got %q want %q", got, want)
 	}
+
+	var decoded struct {
+		Type string `json:"type"`
+		User struct {
+			UserID int64 `json:"userId"`
+		} `json:"user"`
+	}
+	if err := msg.Resp.Decode(&decoded); err != nil {
+		t.Fatalf("decode raw response: %v", err)
+	}
+	if got, want := decoded.User.UserID, int64(1); got != want {
+		t.Fatalf("decoded user id: got %d want %d", got, want)
+	}
 }
 
 func TestDecodeMessageRequiresType(t *testing.T) {
@@ -48,4 +61,3 @@ func TestDecodeMessageRequiresType(t *testing.T) {
 		t.Fatalf("expected error for missing response type")
 	}
 }
-

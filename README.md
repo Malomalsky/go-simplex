@@ -30,3 +30,36 @@ Run tests:
 ```bash
 go test ./...
 ```
+
+## Quickstart (current API)
+
+Run SimpleX CLI with websocket API:
+
+```bash
+simplex-chat -p 5225
+```
+
+Create client and bot runtime:
+
+```go
+ctx := context.Background()
+cli, err := client.NewWebSocket(ctx, "ws://localhost:5225")
+if err != nil {
+    panic(err)
+}
+defer cli.Close(ctx)
+
+rt, err := bot.NewRuntime(cli)
+if err != nil {
+    panic(err)
+}
+
+rt.On("newChatItems", func(ctx context.Context, cli *client.Client, msg protocol.Message) error {
+    // handle event
+    return nil
+})
+
+if err := rt.Run(ctx); err != nil && !errors.Is(err, context.Canceled) {
+    panic(err)
+}
+```
