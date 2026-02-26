@@ -88,6 +88,7 @@ High-level helper methods currently available on `*client.Client`:
 - `SetAddressSettings`
 - `EnsureUserAddress`
 - `ListContacts`
+- `ListGroupsTyped`
 - `ListGroups`
 - `CreateContactInvitation`
 - `ConnectPlan`
@@ -96,6 +97,7 @@ High-level helper methods currently available on `*client.Client`:
 - `AcceptContactRequest`
 - `RejectContactRequest`
 - `CreateUser`
+- `ListUsersTyped`
 - `ListUsers`
 - `SetActiveUser`
 - `DeleteUser`
@@ -109,11 +111,17 @@ High-level helper methods currently available on `*client.Client`:
 - `RemoveGroupMembers`
 - `LeaveGroup`
 - `ListGroupMembers`
+- `ListGroupMembersTyped`
+- `CreateGroupTyped`
 - `CreateGroup`
+- `UpdateGroupProfileTyped`
 - `UpdateGroupProfile`
+- `CreateGroupLinkTyped`
 - `CreateGroupLink`
+- `SetGroupLinkMemberRoleTyped`
 - `SetGroupLinkMemberRole`
 - `DeleteGroupLink`
+- `GetGroupLinkTyped`
 - `GetGroupLink`
 - `EnableAddressAutoAccept`
 - `SendTextMessage`
@@ -167,6 +175,7 @@ and produces:
 - `sdk/client/generated_senders.go`
 - `sdk/types/generated_tags.go`
 - `sdk/types/generated_records.go`
+- `sdk/types/generated_types.go`
 
 To refresh snapshots from upstream and regenerate in one step:
 

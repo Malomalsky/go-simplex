@@ -245,6 +245,51 @@ func TestListGroups(t *testing.T) {
 	}
 }
 
+func TestListGroupsTyped(t *testing.T) {
+	t.Parallel()
+
+	transport := newMockTransport()
+	c, err := New(transport)
+	if err != nil {
+		t.Fatalf("new client: %v", err)
+	}
+	defer c.Close(context.Background())
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	done := make(chan struct{})
+	go func() {
+		rawReq := <-transport.writeCh
+		var req struct {
+			CorrID string `json:"corrId"`
+		}
+		_ = json.Unmarshal(rawReq, &req)
+		transport.readCh <- []byte(`{
+			"corrId":"` + req.CorrID + `",
+			"resp":{
+				"type":"groupsList",
+				"user":{"userId":1,"profile":{"displayName":"bot"}},
+				"groups":[{"groupInfo":{"groupId":7}},{"groupInfo":{"groupId":8}}]
+			}
+		}`)
+		close(done)
+	}()
+
+	groups, err := c.ListGroupsTyped(ctx, 1, nil, "")
+	if err != nil {
+		t.Fatalf("ListGroupsTyped: %v", err)
+	}
+	<-done
+
+	if len(groups) != 2 {
+		t.Fatalf("unexpected groups count: %d", len(groups))
+	}
+	if groups[0].GroupInfo.GroupId != 7 {
+		t.Fatalf("unexpected group id: %d", groups[0].GroupInfo.GroupId)
+	}
+}
+
 func TestCreateContactInvitation(t *testing.T) {
 	t.Parallel()
 
@@ -592,7 +637,7 @@ func TestListGroupMembers(t *testing.T) {
 			CorrID string `json:"corrId"`
 		}
 		_ = json.Unmarshal(rawReq, &req)
-		transport.readCh <- []byte(`{"corrId":"` + req.CorrID + `","resp":{"type":"groupMembers","user":{"userId":1},"group":{"members":[{"memberId":1}]}}}`)
+		transport.readCh <- []byte(`{"corrId":"` + req.CorrID + `","resp":{"type":"groupMembers","user":{"userId":1},"group":{"members":[{"memberId":"m1"}]}}}`)
 		close(done)
 	}()
 
@@ -604,6 +649,51 @@ func TestListGroupMembers(t *testing.T) {
 
 	if string(groupRaw) == "" {
 		t.Fatalf("unexpected empty group payload")
+	}
+}
+
+func TestListGroupMembersTyped(t *testing.T) {
+	t.Parallel()
+
+	transport := newMockTransport()
+	c, err := New(transport)
+	if err != nil {
+		t.Fatalf("new client: %v", err)
+	}
+	defer c.Close(context.Background())
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	done := make(chan struct{})
+	go func() {
+		rawReq := <-transport.writeCh
+		var req struct {
+			CorrID string `json:"corrId"`
+		}
+		_ = json.Unmarshal(rawReq, &req)
+		transport.readCh <- []byte(`{
+			"corrId":"` + req.CorrID + `",
+			"resp":{
+				"type":"groupMembers",
+				"user":{"userId":1},
+				"group":{"groupInfo":{"groupId":7},"members":[{"memberId":"m1"}]}
+			}
+		}`)
+		close(done)
+	}()
+
+	group, err := c.ListGroupMembersTyped(ctx, 7)
+	if err != nil {
+		t.Fatalf("ListGroupMembersTyped: %v", err)
+	}
+	<-done
+
+	if group.GroupInfo.GroupId != 7 {
+		t.Fatalf("unexpected group id: %d", group.GroupInfo.GroupId)
+	}
+	if len(group.Members) != 1 {
+		t.Fatalf("unexpected members count: %d", len(group.Members))
 	}
 }
 
@@ -882,6 +972,50 @@ func TestListUsers(t *testing.T) {
 	}
 }
 
+func TestListUsersTyped(t *testing.T) {
+	t.Parallel()
+
+	transport := newMockTransport()
+	c, err := New(transport)
+	if err != nil {
+		t.Fatalf("new client: %v", err)
+	}
+	defer c.Close(context.Background())
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	done := make(chan struct{})
+	go func() {
+		rawReq := <-transport.writeCh
+		var req struct {
+			CorrID string `json:"corrId"`
+		}
+		_ = json.Unmarshal(rawReq, &req)
+		transport.readCh <- []byte(`{
+			"corrId":"` + req.CorrID + `",
+			"resp":{
+				"type":"usersList",
+				"users":[{"user":{"userId":1},"unreadCount":2},{"user":{"userId":2},"unreadCount":3}]
+			}
+		}`)
+		close(done)
+	}()
+
+	users, err := c.ListUsersTyped(ctx)
+	if err != nil {
+		t.Fatalf("ListUsersTyped: %v", err)
+	}
+	<-done
+
+	if len(users) != 2 {
+		t.Fatalf("unexpected users count: %d", len(users))
+	}
+	if users[0].UnreadCount != 2 {
+		t.Fatalf("unexpected unread count: %d", users[0].UnreadCount)
+	}
+}
+
 func TestSetActiveUser(t *testing.T) {
 	t.Parallel()
 
@@ -1145,6 +1279,9 @@ func TestConnectWithLink(t *testing.T) {
 	}
 	if string(res.Connection) == "" {
 		t.Fatalf("expected non-empty connection payload")
+	}
+	if res.ConnectionInfo == nil {
+		t.Fatalf("expected non-nil typed connection details")
 	}
 }
 
@@ -1822,6 +1959,54 @@ func TestDeleteChat(t *testing.T) {
 	}
 }
 
+func TestDeleteChatConnectionDeletedTypedPayload(t *testing.T) {
+	t.Parallel()
+
+	transport := newMockTransport()
+	c, err := New(transport)
+	if err != nil {
+		t.Fatalf("new client: %v", err)
+	}
+	defer c.Close(context.Background())
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	done := make(chan struct{})
+	go func() {
+		rawReq := <-transport.writeCh
+		var req struct {
+			CorrID string `json:"corrId"`
+		}
+		_ = json.Unmarshal(rawReq, &req)
+		transport.readCh <- []byte(`{
+			"corrId":"` + req.CorrID + `",
+			"resp":{
+				"type":"contactConnectionDeleted",
+				"user":{"userId":1},
+				"connection":{"pccConnId":11,"pccAgentConnId":"a1","pccConnStatus":"connected","viaContactUri":true,"localAlias":"","createdAt":"2025-01-01T00:00:00Z","updatedAt":"2025-01-01T00:00:00Z"}
+			}
+		}`)
+		close(done)
+	}()
+
+	res, err := c.DeleteChat(ctx, "@42", ChatDeleteMode("entity"))
+	if err != nil {
+		t.Fatalf("DeleteChat: %v", err)
+	}
+	<-done
+
+	if res.ResponseType != types.ResponseTypeContactConnectionDeleted {
+		t.Fatalf("unexpected delete-chat response: %s", res.ResponseType)
+	}
+	if string(res.Connection) == "" {
+		t.Fatalf("expected raw connection payload")
+	}
+	if res.ConnectionInfo == nil || res.ConnectionInfo.PccConnId != 11 {
+		t.Fatalf("unexpected typed connection payload: %+v", res.ConnectionInfo)
+	}
+}
+
 func TestDeleteChatEmptyMode(t *testing.T) {
 	t.Parallel()
 
@@ -1941,6 +2126,9 @@ func TestReceiveFileAcceptedSndCancelled(t *testing.T) {
 	if string(res.Transfer) == "" {
 		t.Fatalf("expected transfer payload")
 	}
+	if res.TransferDetails == nil {
+		t.Fatalf("expected typed transfer details")
+	}
 }
 
 func TestCancelFileSndFileCancelled(t *testing.T) {
@@ -1991,6 +2179,12 @@ func TestCancelFileSndFileCancelled(t *testing.T) {
 	}
 	if len(res.Transfers) != 1 {
 		t.Fatalf("unexpected transfers count: %d", len(res.Transfers))
+	}
+	if res.TransferSnd == nil {
+		t.Fatalf("expected typed snd transfer")
+	}
+	if len(res.TransfersSndDetail) != 1 {
+		t.Fatalf("unexpected typed snd transfers count: %d", len(res.TransfersSndDetail))
 	}
 	if !strings.HasPrefix(cmd, "/fcancel 77") {
 		t.Fatalf("unexpected cancel-file command: %q", cmd)
@@ -2043,5 +2237,8 @@ func TestCancelFileRcvFileCancelled(t *testing.T) {
 	}
 	if string(res.Transfer) == "" {
 		t.Fatalf("expected transfer payload")
+	}
+	if res.TransferRcv == nil {
+		t.Fatalf("expected typed rcv transfer")
 	}
 }

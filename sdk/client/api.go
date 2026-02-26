@@ -19,6 +19,7 @@ type ConnectSummary struct {
 	ResponseType    types.ResponseType
 	ExistingContact *types.Contact
 	Connection      json.RawMessage
+	ConnectionInfo  *types.PendingContactConnection
 }
 
 type SendTextOptions struct {
@@ -47,10 +48,12 @@ type UpdateChatItemSummary struct {
 type ChatDeleteMode string
 
 type DeleteChatSummary struct {
-	ResponseType types.ResponseType
-	Contact      *types.Contact
-	Connection   json.RawMessage
-	GroupInfo    json.RawMessage
+	ResponseType    types.ResponseType
+	Contact         *types.Contact
+	Connection      json.RawMessage
+	ConnectionInfo  *types.PendingContactConnection
+	GroupInfo       json.RawMessage
+	GroupInfoRecord *types.GroupInfo
 }
 
 type ReceiveFileOptions struct {
@@ -61,16 +64,20 @@ type ReceiveFileOptions struct {
 }
 
 type ReceiveFileSummary struct {
-	ResponseType types.ResponseType
-	ChatItem     *types.AChatItem
-	Transfer     json.RawMessage
+	ResponseType    types.ResponseType
+	ChatItem        *types.AChatItem
+	Transfer        json.RawMessage
+	TransferDetails *types.RcvFileTransfer
 }
 
 type CancelFileSummary struct {
-	ResponseType types.ResponseType
-	ChatItem     *types.AChatItem
-	Transfer     json.RawMessage
-	Transfers    []json.RawMessage
+	ResponseType       types.ResponseType
+	ChatItem           *types.AChatItem
+	Transfer           json.RawMessage
+	TransferRcv        *types.RcvFileTransfer
+	TransferSnd        *types.FileTransferMeta
+	Transfers          []json.RawMessage
+	TransfersSndDetail []types.SndFileTransfer
 }
 
 func (e *CommandError) Error() string {
@@ -220,7 +227,7 @@ func (c *Client) ListContacts(ctx context.Context, userID int64) ([]types.Contac
 	return nil, fmt.Errorf("missing response payload for %s", result.Message.Resp.Type)
 }
 
-func (c *Client) ListGroups(ctx context.Context, userID int64, contactID *int64, search string) ([]json.RawMessage, error) {
+func (c *Client) ListGroupsTyped(ctx context.Context, userID int64, contactID *int64, search string) ([]types.GroupInfoSummary, error) {
 	req := command.APIListGroups{
 		UserId:     userID,
 		ContactId_: contactID,
@@ -234,12 +241,20 @@ func (c *Client) ListGroups(ctx context.Context, userID int64, contactID *int64,
 		return nil, err
 	}
 	if result.GroupsList != nil {
-		return append([]json.RawMessage(nil), result.GroupsList.Groups...), nil
+		return append([]types.GroupInfoSummary(nil), result.GroupsList.Groups...), nil
 	}
 	if result.ChatCmdError != nil {
 		return nil, commandErrorFromRaw(result.Message.Resp.Type, result.Message.Resp.Raw)
 	}
 	return nil, fmt.Errorf("missing response payload for %s", result.Message.Resp.Type)
+}
+
+func (c *Client) ListGroups(ctx context.Context, userID int64, contactID *int64, search string) ([]json.RawMessage, error) {
+	groups, err := c.ListGroupsTyped(ctx, userID, contactID, search)
+	if err != nil {
+		return nil, err
+	}
+	return marshalRawSlice(groups)
 }
 
 func (c *Client) AddGroupMember(ctx context.Context, groupID int64, contactID int64, memberRole string) error {
@@ -360,13 +375,14 @@ func (c *Client) LeaveGroup(ctx context.Context, groupID int64) error {
 	return fmt.Errorf("missing response payload for %s", result.Message.Resp.Type)
 }
 
-func (c *Client) ListGroupMembers(ctx context.Context, groupID int64) (json.RawMessage, error) {
+func (c *Client) ListGroupMembersTyped(ctx context.Context, groupID int64) (*types.Group, error) {
 	result, err := c.SendAPIListMembers(ctx, command.APIListMembers{GroupId: groupID})
 	if err != nil {
 		return nil, err
 	}
 	if result.GroupMembers != nil {
-		return append([]byte(nil), result.GroupMembers.Group...), nil
+		group := result.GroupMembers.Group
+		return &group, nil
 	}
 	if result.ChatCmdError != nil {
 		return nil, commandErrorFromRaw(result.Message.Resp.Type, result.Message.Resp.Raw)
@@ -374,7 +390,15 @@ func (c *Client) ListGroupMembers(ctx context.Context, groupID int64) (json.RawM
 	return nil, fmt.Errorf("missing response payload for %s", result.Message.Resp.Type)
 }
 
-func (c *Client) CreateGroup(ctx context.Context, userID int64, incognito bool, groupProfile map[string]any) (json.RawMessage, error) {
+func (c *Client) ListGroupMembers(ctx context.Context, groupID int64) (json.RawMessage, error) {
+	group, err := c.ListGroupMembersTyped(ctx, groupID)
+	if err != nil {
+		return nil, err
+	}
+	return marshalRaw(group)
+}
+
+func (c *Client) CreateGroupTyped(ctx context.Context, userID int64, incognito bool, groupProfile map[string]any) (*types.GroupInfo, error) {
 	result, err := c.SendAPINewGroup(ctx, command.APINewGroup{
 		UserId:       userID,
 		Incognito:    incognito,
@@ -384,7 +408,8 @@ func (c *Client) CreateGroup(ctx context.Context, userID int64, incognito bool, 
 		return nil, err
 	}
 	if result.GroupCreated != nil {
-		return append([]byte(nil), result.GroupCreated.GroupInfo...), nil
+		groupInfo := result.GroupCreated.GroupInfo
+		return &groupInfo, nil
 	}
 	if result.ChatCmdError != nil {
 		return nil, commandErrorFromRaw(result.Message.Resp.Type, result.Message.Resp.Raw)
@@ -392,7 +417,15 @@ func (c *Client) CreateGroup(ctx context.Context, userID int64, incognito bool, 
 	return nil, fmt.Errorf("missing response payload for %s", result.Message.Resp.Type)
 }
 
-func (c *Client) UpdateGroupProfile(ctx context.Context, groupID int64, groupProfile map[string]any) (json.RawMessage, error) {
+func (c *Client) CreateGroup(ctx context.Context, userID int64, incognito bool, groupProfile map[string]any) (json.RawMessage, error) {
+	groupInfo, err := c.CreateGroupTyped(ctx, userID, incognito, groupProfile)
+	if err != nil {
+		return nil, err
+	}
+	return marshalRaw(groupInfo)
+}
+
+func (c *Client) UpdateGroupProfileTyped(ctx context.Context, groupID int64, groupProfile map[string]any) (*types.GroupInfo, error) {
 	result, err := c.SendAPIUpdateGroupProfile(ctx, command.APIUpdateGroupProfile{
 		GroupId:      groupID,
 		GroupProfile: groupProfile,
@@ -401,7 +434,8 @@ func (c *Client) UpdateGroupProfile(ctx context.Context, groupID int64, groupPro
 		return nil, err
 	}
 	if result.GroupUpdated != nil {
-		return append([]byte(nil), result.GroupUpdated.ToGroup...), nil
+		groupInfo := result.GroupUpdated.ToGroup
+		return &groupInfo, nil
 	}
 	if result.ChatCmdError != nil {
 		return nil, commandErrorFromRaw(result.Message.Resp.Type, result.Message.Resp.Raw)
@@ -409,7 +443,15 @@ func (c *Client) UpdateGroupProfile(ctx context.Context, groupID int64, groupPro
 	return nil, fmt.Errorf("missing response payload for %s", result.Message.Resp.Type)
 }
 
-func (c *Client) CreateGroupLink(ctx context.Context, groupID int64, memberRole string) (json.RawMessage, error) {
+func (c *Client) UpdateGroupProfile(ctx context.Context, groupID int64, groupProfile map[string]any) (json.RawMessage, error) {
+	groupInfo, err := c.UpdateGroupProfileTyped(ctx, groupID, groupProfile)
+	if err != nil {
+		return nil, err
+	}
+	return marshalRaw(groupInfo)
+}
+
+func (c *Client) CreateGroupLinkTyped(ctx context.Context, groupID int64, memberRole string) (*types.GroupLink, error) {
 	result, err := c.SendAPICreateGroupLink(ctx, command.APICreateGroupLink{
 		GroupId:    groupID,
 		MemberRole: memberRole,
@@ -418,7 +460,8 @@ func (c *Client) CreateGroupLink(ctx context.Context, groupID int64, memberRole 
 		return nil, err
 	}
 	if result.GroupLinkCreated != nil {
-		return append([]byte(nil), result.GroupLinkCreated.GroupLink...), nil
+		groupLink := result.GroupLinkCreated.GroupLink
+		return &groupLink, nil
 	}
 	if result.ChatCmdError != nil {
 		return nil, commandErrorFromRaw(result.Message.Resp.Type, result.Message.Resp.Raw)
@@ -426,7 +469,15 @@ func (c *Client) CreateGroupLink(ctx context.Context, groupID int64, memberRole 
 	return nil, fmt.Errorf("missing response payload for %s", result.Message.Resp.Type)
 }
 
-func (c *Client) SetGroupLinkMemberRole(ctx context.Context, groupID int64, memberRole string) (json.RawMessage, error) {
+func (c *Client) CreateGroupLink(ctx context.Context, groupID int64, memberRole string) (json.RawMessage, error) {
+	groupLink, err := c.CreateGroupLinkTyped(ctx, groupID, memberRole)
+	if err != nil {
+		return nil, err
+	}
+	return marshalRaw(groupLink)
+}
+
+func (c *Client) SetGroupLinkMemberRoleTyped(ctx context.Context, groupID int64, memberRole string) (*types.GroupLink, error) {
 	result, err := c.SendAPIGroupLinkMemberRole(ctx, command.APIGroupLinkMemberRole{
 		GroupId:    groupID,
 		MemberRole: memberRole,
@@ -435,12 +486,21 @@ func (c *Client) SetGroupLinkMemberRole(ctx context.Context, groupID int64, memb
 		return nil, err
 	}
 	if result.GroupLink != nil {
-		return append([]byte(nil), result.GroupLink.GroupLink...), nil
+		groupLink := result.GroupLink.GroupLink
+		return &groupLink, nil
 	}
 	if result.ChatCmdError != nil {
 		return nil, commandErrorFromRaw(result.Message.Resp.Type, result.Message.Resp.Raw)
 	}
 	return nil, fmt.Errorf("missing response payload for %s", result.Message.Resp.Type)
+}
+
+func (c *Client) SetGroupLinkMemberRole(ctx context.Context, groupID int64, memberRole string) (json.RawMessage, error) {
+	groupLink, err := c.SetGroupLinkMemberRoleTyped(ctx, groupID, memberRole)
+	if err != nil {
+		return nil, err
+	}
+	return marshalRaw(groupLink)
 }
 
 func (c *Client) DeleteGroupLink(ctx context.Context, groupID int64) error {
@@ -457,18 +517,27 @@ func (c *Client) DeleteGroupLink(ctx context.Context, groupID int64) error {
 	return fmt.Errorf("missing response payload for %s", result.Message.Resp.Type)
 }
 
-func (c *Client) GetGroupLink(ctx context.Context, groupID int64) (json.RawMessage, error) {
+func (c *Client) GetGroupLinkTyped(ctx context.Context, groupID int64) (*types.GroupLink, error) {
 	result, err := c.SendAPIGetGroupLink(ctx, command.APIGetGroupLink{GroupId: groupID})
 	if err != nil {
 		return nil, err
 	}
 	if result.GroupLink != nil {
-		return append([]byte(nil), result.GroupLink.GroupLink...), nil
+		groupLink := result.GroupLink.GroupLink
+		return &groupLink, nil
 	}
 	if result.ChatCmdError != nil {
 		return nil, commandErrorFromRaw(result.Message.Resp.Type, result.Message.Resp.Raw)
 	}
 	return nil, fmt.Errorf("missing response payload for %s", result.Message.Resp.Type)
+}
+
+func (c *Client) GetGroupLink(ctx context.Context, groupID int64) (json.RawMessage, error) {
+	groupLink, err := c.GetGroupLinkTyped(ctx, groupID)
+	if err != nil {
+		return nil, err
+	}
+	return marshalRaw(groupLink)
 }
 
 func (c *Client) CreateContactInvitation(ctx context.Context, userID int64, incognito bool) (string, error) {
@@ -547,18 +616,26 @@ func (c *Client) CreateUser(ctx context.Context, newUser map[string]any) (*types
 	return nil, fmt.Errorf("missing response payload for %s", result.Message.Resp.Type)
 }
 
-func (c *Client) ListUsers(ctx context.Context) ([]json.RawMessage, error) {
+func (c *Client) ListUsersTyped(ctx context.Context) ([]types.UserInfo, error) {
 	result, err := c.SendListUsers(ctx, command.ListUsers{})
 	if err != nil {
 		return nil, err
 	}
 	if result.UsersList != nil {
-		return append([]json.RawMessage(nil), result.UsersList.Users...), nil
+		return append([]types.UserInfo(nil), result.UsersList.Users...), nil
 	}
 	if result.ChatCmdError != nil {
 		return nil, commandErrorFromRaw(result.Message.Resp.Type, result.Message.Resp.Raw)
 	}
 	return nil, fmt.Errorf("missing response payload for %s", result.Message.Resp.Type)
+}
+
+func (c *Client) ListUsers(ctx context.Context) ([]json.RawMessage, error) {
+	users, err := c.ListUsersTyped(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return marshalRawSlice(users)
 }
 
 func (c *Client) SetActiveUser(ctx context.Context, userID int64, viewPwd *string) (*types.User, error) {
@@ -873,15 +950,27 @@ func (c *Client) DeleteChat(ctx context.Context, chatRef string, mode ChatDelete
 		}, nil
 	}
 	if result.ContactConnectionDeleted != nil {
+		connectionRaw, err := marshalRaw(result.ContactConnectionDeleted.Connection)
+		if err != nil {
+			return nil, err
+		}
+		connection := result.ContactConnectionDeleted.Connection
 		return &DeleteChatSummary{
-			ResponseType: types.ResponseTypeContactConnectionDeleted,
-			Connection:   copyRaw(result.ContactConnectionDeleted.Connection),
+			ResponseType:   types.ResponseTypeContactConnectionDeleted,
+			Connection:     connectionRaw,
+			ConnectionInfo: &connection,
 		}, nil
 	}
 	if result.GroupDeletedUser != nil {
+		groupInfoRaw, err := marshalRaw(result.GroupDeletedUser.GroupInfo)
+		if err != nil {
+			return nil, err
+		}
+		groupInfo := result.GroupDeletedUser.GroupInfo
 		return &DeleteChatSummary{
-			ResponseType: types.ResponseTypeGroupDeletedUser,
-			GroupInfo:    copyRaw(result.GroupDeletedUser.GroupInfo),
+			ResponseType:    types.ResponseTypeGroupDeletedUser,
+			GroupInfo:       groupInfoRaw,
+			GroupInfoRecord: &groupInfo,
 		}, nil
 	}
 	if result.ChatCmdError != nil {
@@ -917,9 +1006,15 @@ func (c *Client) ReceiveFile(ctx context.Context, fileID int64, options ReceiveF
 		}, nil
 	}
 	if result.RcvFileAcceptedSndCancelled != nil {
+		transferRaw, err := marshalRaw(result.RcvFileAcceptedSndCancelled.RcvFileTransfer)
+		if err != nil {
+			return nil, err
+		}
+		transfer := result.RcvFileAcceptedSndCancelled.RcvFileTransfer
 		return &ReceiveFileSummary{
-			ResponseType: types.ResponseTypeRcvFileAcceptedSndCancelled,
-			Transfer:     copyRaw(result.RcvFileAcceptedSndCancelled.RcvFileTransfer),
+			ResponseType:    types.ResponseTypeRcvFileAcceptedSndCancelled,
+			Transfer:        transferRaw,
+			TransferDetails: &transfer,
 		}, nil
 	}
 	if result.ChatCmdError != nil {
@@ -939,11 +1034,21 @@ func (c *Client) CancelFile(ctx context.Context, fileID int64) (*CancelFileSumma
 			item := *result.SndFileCancelled.ChatItem_
 			chatItem = &item
 		}
+		transferRaw, err := marshalRaw(result.SndFileCancelled.FileTransferMeta)
+		if err != nil {
+			return nil, err
+		}
+		transfersRaw, err := marshalRawSlice(result.SndFileCancelled.SndFileTransfers)
+		if err != nil {
+			return nil, err
+		}
 		return &CancelFileSummary{
-			ResponseType: types.ResponseTypeSndFileCancelled,
-			ChatItem:     chatItem,
-			Transfer:     copyRaw(result.SndFileCancelled.FileTransferMeta),
-			Transfers:    copyRawSlice(result.SndFileCancelled.SndFileTransfers),
+			ResponseType:       types.ResponseTypeSndFileCancelled,
+			ChatItem:           chatItem,
+			Transfer:           transferRaw,
+			TransferSnd:        &result.SndFileCancelled.FileTransferMeta,
+			Transfers:          transfersRaw,
+			TransfersSndDetail: append([]types.SndFileTransfer(nil), result.SndFileCancelled.SndFileTransfers...),
 		}, nil
 	}
 	if result.RcvFileCancelled != nil {
@@ -952,10 +1057,16 @@ func (c *Client) CancelFile(ctx context.Context, fileID int64) (*CancelFileSumma
 			item := *result.RcvFileCancelled.ChatItem_
 			chatItem = &item
 		}
+		transferRaw, err := marshalRaw(result.RcvFileCancelled.RcvFileTransfer)
+		if err != nil {
+			return nil, err
+		}
+		transfer := result.RcvFileCancelled.RcvFileTransfer
 		return &CancelFileSummary{
 			ResponseType: types.ResponseTypeRcvFileCancelled,
 			ChatItem:     chatItem,
-			Transfer:     copyRaw(result.RcvFileCancelled.RcvFileTransfer),
+			Transfer:     transferRaw,
+			TransferRcv:  &transfer,
 		}, nil
 	}
 	if result.ChatCmdError != nil {
@@ -964,19 +1075,27 @@ func (c *Client) CancelFile(ctx context.Context, fileID int64) (*CancelFileSumma
 	return nil, fmt.Errorf("missing response payload for %s", result.Message.Resp.Type)
 }
 
-func copyRaw(raw json.RawMessage) json.RawMessage {
-	return append([]byte(nil), raw...)
+func marshalRaw(v any) (json.RawMessage, error) {
+	raw, err := json.Marshal(v)
+	if err != nil {
+		return nil, fmt.Errorf("marshal response payload: %w", err)
+	}
+	return raw, nil
 }
 
-func copyRawSlice(rawList []json.RawMessage) []json.RawMessage {
-	if len(rawList) == 0 {
-		return nil
+func marshalRawSlice[T any](items []T) ([]json.RawMessage, error) {
+	if len(items) == 0 {
+		return nil, nil
 	}
-	out := make([]json.RawMessage, 0, len(rawList))
-	for _, raw := range rawList {
-		out = append(out, copyRaw(raw))
+	out := make([]json.RawMessage, 0, len(items))
+	for _, item := range items {
+		raw, err := marshalRaw(item)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, raw)
 	}
-	return out
+	return out, nil
 }
 
 func connectSummaryFromAPIConnectResult(result APIConnectResult) (*ConnectSummary, error) {
@@ -987,15 +1106,27 @@ func connectSummaryFromAPIConnectResult(result APIConnectResult) (*ConnectSummar
 		}, nil
 	}
 	if result.SentConfirmation != nil {
+		connectionRaw, err := marshalRaw(result.SentConfirmation.Connection)
+		if err != nil {
+			return nil, err
+		}
+		connection := result.SentConfirmation.Connection
 		return &ConnectSummary{
-			ResponseType: types.ResponseTypeSentConfirmation,
-			Connection:   append([]byte(nil), result.SentConfirmation.Connection...),
+			ResponseType:   types.ResponseTypeSentConfirmation,
+			Connection:     connectionRaw,
+			ConnectionInfo: &connection,
 		}, nil
 	}
 	if result.SentInvitation != nil {
+		connectionRaw, err := marshalRaw(result.SentInvitation.Connection)
+		if err != nil {
+			return nil, err
+		}
+		connection := result.SentInvitation.Connection
 		return &ConnectSummary{
-			ResponseType: types.ResponseTypeSentInvitation,
-			Connection:   append([]byte(nil), result.SentInvitation.Connection...),
+			ResponseType:   types.ResponseTypeSentInvitation,
+			Connection:     connectionRaw,
+			ConnectionInfo: &connection,
 		}, nil
 	}
 	if result.ChatCmdError != nil {
@@ -1012,15 +1143,27 @@ func connectSummaryFromConnectResult(result ConnectResult) (*ConnectSummary, err
 		}, nil
 	}
 	if result.SentConfirmation != nil {
+		connectionRaw, err := marshalRaw(result.SentConfirmation.Connection)
+		if err != nil {
+			return nil, err
+		}
+		connection := result.SentConfirmation.Connection
 		return &ConnectSummary{
-			ResponseType: types.ResponseTypeSentConfirmation,
-			Connection:   append([]byte(nil), result.SentConfirmation.Connection...),
+			ResponseType:   types.ResponseTypeSentConfirmation,
+			Connection:     connectionRaw,
+			ConnectionInfo: &connection,
 		}, nil
 	}
 	if result.SentInvitation != nil {
+		connectionRaw, err := marshalRaw(result.SentInvitation.Connection)
+		if err != nil {
+			return nil, err
+		}
+		connection := result.SentInvitation.Connection
 		return &ConnectSummary{
-			ResponseType: types.ResponseTypeSentInvitation,
-			Connection:   append([]byte(nil), result.SentInvitation.Connection...),
+			ResponseType:   types.ResponseTypeSentInvitation,
+			Connection:     connectionRaw,
+			ConnectionInfo: &connection,
 		}, nil
 	}
 	if result.ChatCmdError != nil {
