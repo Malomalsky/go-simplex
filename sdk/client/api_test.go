@@ -359,6 +359,251 @@ func TestRejectContactRequest(t *testing.T) {
 	<-done
 }
 
+func TestAddGroupMember(t *testing.T) {
+	t.Parallel()
+
+	transport := newMockTransport()
+	c, err := New(transport)
+	if err != nil {
+		t.Fatalf("new client: %v", err)
+	}
+	defer c.Close(context.Background())
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	done := make(chan struct{})
+	go func() {
+		rawReq := <-transport.writeCh
+		var req struct {
+			CorrID string `json:"corrId"`
+		}
+		_ = json.Unmarshal(rawReq, &req)
+		transport.readCh <- []byte(`{"corrId":"` + req.CorrID + `","resp":{"type":"sentGroupInvitation","user":{"userId":1},"groupInfo":{},"contact":{"contactId":42}}}`)
+		close(done)
+	}()
+
+	if err := c.AddGroupMember(ctx, 7, 42, "member"); err != nil {
+		t.Fatalf("AddGroupMember: %v", err)
+	}
+	<-done
+}
+
+func TestJoinGroup(t *testing.T) {
+	t.Parallel()
+
+	transport := newMockTransport()
+	c, err := New(transport)
+	if err != nil {
+		t.Fatalf("new client: %v", err)
+	}
+	defer c.Close(context.Background())
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	done := make(chan struct{})
+	go func() {
+		rawReq := <-transport.writeCh
+		var req struct {
+			CorrID string `json:"corrId"`
+		}
+		_ = json.Unmarshal(rawReq, &req)
+		transport.readCh <- []byte(`{"corrId":"` + req.CorrID + `","resp":{"type":"userAcceptedGroupSent","user":{"userId":1},"groupInfo":{},"hostContact":{"contactId":42}}}`)
+		close(done)
+	}()
+
+	if err := c.JoinGroup(ctx, 7); err != nil {
+		t.Fatalf("JoinGroup: %v", err)
+	}
+	<-done
+}
+
+func TestAcceptGroupMember(t *testing.T) {
+	t.Parallel()
+
+	transport := newMockTransport()
+	c, err := New(transport)
+	if err != nil {
+		t.Fatalf("new client: %v", err)
+	}
+	defer c.Close(context.Background())
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	done := make(chan struct{})
+	go func() {
+		rawReq := <-transport.writeCh
+		var req struct {
+			CorrID string `json:"corrId"`
+		}
+		_ = json.Unmarshal(rawReq, &req)
+		transport.readCh <- []byte(`{"corrId":"` + req.CorrID + `","resp":{"type":"memberAccepted","user":{"userId":1},"groupInfo":{},"member":{}}}`)
+		close(done)
+	}()
+
+	if err := c.AcceptGroupMember(ctx, 7, 1001, "member"); err != nil {
+		t.Fatalf("AcceptGroupMember: %v", err)
+	}
+	<-done
+}
+
+func TestSetGroupMembersRole(t *testing.T) {
+	t.Parallel()
+
+	transport := newMockTransport()
+	c, err := New(transport)
+	if err != nil {
+		t.Fatalf("new client: %v", err)
+	}
+	defer c.Close(context.Background())
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	done := make(chan struct{})
+	go func() {
+		rawReq := <-transport.writeCh
+		var req struct {
+			CorrID string `json:"corrId"`
+		}
+		_ = json.Unmarshal(rawReq, &req)
+		transport.readCh <- []byte(`{"corrId":"` + req.CorrID + `","resp":{"type":"membersRoleUser","user":{"userId":1},"groupInfo":{},"members":[],"toRole":"member"}}`)
+		close(done)
+	}()
+
+	if err := c.SetGroupMembersRole(ctx, 7, []int64{1001, 1002}, "member"); err != nil {
+		t.Fatalf("SetGroupMembersRole: %v", err)
+	}
+	<-done
+}
+
+func TestBlockGroupMembersForAll(t *testing.T) {
+	t.Parallel()
+
+	transport := newMockTransport()
+	c, err := New(transport)
+	if err != nil {
+		t.Fatalf("new client: %v", err)
+	}
+	defer c.Close(context.Background())
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	done := make(chan struct{})
+	go func() {
+		rawReq := <-transport.writeCh
+		var req struct {
+			CorrID string `json:"corrId"`
+		}
+		_ = json.Unmarshal(rawReq, &req)
+		transport.readCh <- []byte(`{"corrId":"` + req.CorrID + `","resp":{"type":"membersBlockedForAllUser","user":{"userId":1},"groupInfo":{},"members":[],"blocked":true}}`)
+		close(done)
+	}()
+
+	if err := c.BlockGroupMembersForAll(ctx, 7, []int64{1001}, true); err != nil {
+		t.Fatalf("BlockGroupMembersForAll: %v", err)
+	}
+	<-done
+}
+
+func TestRemoveGroupMembers(t *testing.T) {
+	t.Parallel()
+
+	transport := newMockTransport()
+	c, err := New(transport)
+	if err != nil {
+		t.Fatalf("new client: %v", err)
+	}
+	defer c.Close(context.Background())
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	done := make(chan struct{})
+	go func() {
+		rawReq := <-transport.writeCh
+		var req struct {
+			CorrID string `json:"corrId"`
+		}
+		_ = json.Unmarshal(rawReq, &req)
+		transport.readCh <- []byte(`{"corrId":"` + req.CorrID + `","resp":{"type":"userDeletedMembers","user":{"userId":1},"groupInfo":{},"members":[],"withMessages":false}}`)
+		close(done)
+	}()
+
+	if err := c.RemoveGroupMembers(ctx, 7, []int64{1001}, false); err != nil {
+		t.Fatalf("RemoveGroupMembers: %v", err)
+	}
+	<-done
+}
+
+func TestLeaveGroup(t *testing.T) {
+	t.Parallel()
+
+	transport := newMockTransport()
+	c, err := New(transport)
+	if err != nil {
+		t.Fatalf("new client: %v", err)
+	}
+	defer c.Close(context.Background())
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	done := make(chan struct{})
+	go func() {
+		rawReq := <-transport.writeCh
+		var req struct {
+			CorrID string `json:"corrId"`
+		}
+		_ = json.Unmarshal(rawReq, &req)
+		transport.readCh <- []byte(`{"corrId":"` + req.CorrID + `","resp":{"type":"leftMemberUser","user":{"userId":1},"groupInfo":{}}}`)
+		close(done)
+	}()
+
+	if err := c.LeaveGroup(ctx, 7); err != nil {
+		t.Fatalf("LeaveGroup: %v", err)
+	}
+	<-done
+}
+
+func TestListGroupMembers(t *testing.T) {
+	t.Parallel()
+
+	transport := newMockTransport()
+	c, err := New(transport)
+	if err != nil {
+		t.Fatalf("new client: %v", err)
+	}
+	defer c.Close(context.Background())
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	done := make(chan struct{})
+	go func() {
+		rawReq := <-transport.writeCh
+		var req struct {
+			CorrID string `json:"corrId"`
+		}
+		_ = json.Unmarshal(rawReq, &req)
+		transport.readCh <- []byte(`{"corrId":"` + req.CorrID + `","resp":{"type":"groupMembers","user":{"userId":1},"group":{"members":[{"memberId":1}]}}}`)
+		close(done)
+	}()
+
+	groupRaw, err := c.ListGroupMembers(ctx, 7)
+	if err != nil {
+		t.Fatalf("ListGroupMembers: %v", err)
+	}
+	<-done
+
+	if string(groupRaw) == "" {
+		t.Fatalf("unexpected empty group payload")
+	}
+}
+
 func TestSendTextMessage(t *testing.T) {
 	t.Parallel()
 

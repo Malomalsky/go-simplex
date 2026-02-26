@@ -150,6 +150,138 @@ func (c *Client) ListGroups(ctx context.Context, userID int64, contactID *int64,
 	return nil, fmt.Errorf("missing response payload for %s", result.Message.Resp.Type)
 }
 
+func (c *Client) AddGroupMember(ctx context.Context, groupID int64, contactID int64, memberRole string) error {
+	result, err := c.SendAPIAddMember(ctx, command.APIAddMember{
+		GroupId:    groupID,
+		ContactId:  contactID,
+		MemberRole: memberRole,
+	})
+	if err != nil {
+		return err
+	}
+	if result.SentGroupInvitation != nil {
+		return nil
+	}
+	if result.ChatCmdError != nil {
+		return commandErrorFromRaw(result.Message.Resp.Type, result.Message.Resp.Raw)
+	}
+	return fmt.Errorf("missing response payload for %s", result.Message.Resp.Type)
+}
+
+func (c *Client) JoinGroup(ctx context.Context, groupID int64) error {
+	result, err := c.SendAPIJoinGroup(ctx, command.APIJoinGroup{GroupId: groupID})
+	if err != nil {
+		return err
+	}
+	if result.UserAcceptedGroupSent != nil {
+		return nil
+	}
+	if result.ChatCmdError != nil {
+		return commandErrorFromRaw(result.Message.Resp.Type, result.Message.Resp.Raw)
+	}
+	return fmt.Errorf("missing response payload for %s", result.Message.Resp.Type)
+}
+
+func (c *Client) AcceptGroupMember(ctx context.Context, groupID int64, groupMemberID int64, memberRole string) error {
+	result, err := c.SendAPIAcceptMember(ctx, command.APIAcceptMember{
+		GroupId:       groupID,
+		GroupMemberId: groupMemberID,
+		MemberRole:    memberRole,
+	})
+	if err != nil {
+		return err
+	}
+	if result.MemberAccepted != nil {
+		return nil
+	}
+	if result.ChatCmdError != nil {
+		return commandErrorFromRaw(result.Message.Resp.Type, result.Message.Resp.Raw)
+	}
+	return fmt.Errorf("missing response payload for %s", result.Message.Resp.Type)
+}
+
+func (c *Client) SetGroupMembersRole(ctx context.Context, groupID int64, groupMemberIDs []int64, memberRole string) error {
+	result, err := c.SendAPIMembersRole(ctx, command.APIMembersRole{
+		GroupId:        groupID,
+		GroupMemberIds: groupMemberIDs,
+		MemberRole:     memberRole,
+	})
+	if err != nil {
+		return err
+	}
+	if result.MembersRoleUser != nil {
+		return nil
+	}
+	if result.ChatCmdError != nil {
+		return commandErrorFromRaw(result.Message.Resp.Type, result.Message.Resp.Raw)
+	}
+	return fmt.Errorf("missing response payload for %s", result.Message.Resp.Type)
+}
+
+func (c *Client) BlockGroupMembersForAll(ctx context.Context, groupID int64, groupMemberIDs []int64, blocked bool) error {
+	result, err := c.SendAPIBlockMembersForAll(ctx, command.APIBlockMembersForAll{
+		GroupId:        groupID,
+		GroupMemberIds: groupMemberIDs,
+		Blocked:        blocked,
+	})
+	if err != nil {
+		return err
+	}
+	if result.MembersBlockedForAllUser != nil {
+		return nil
+	}
+	if result.ChatCmdError != nil {
+		return commandErrorFromRaw(result.Message.Resp.Type, result.Message.Resp.Raw)
+	}
+	return fmt.Errorf("missing response payload for %s", result.Message.Resp.Type)
+}
+
+func (c *Client) RemoveGroupMembers(ctx context.Context, groupID int64, groupMemberIDs []int64, withMessages bool) error {
+	result, err := c.SendAPIRemoveMembers(ctx, command.APIRemoveMembers{
+		GroupId:        groupID,
+		GroupMemberIds: groupMemberIDs,
+		WithMessages:   withMessages,
+	})
+	if err != nil {
+		return err
+	}
+	if result.UserDeletedMembers != nil {
+		return nil
+	}
+	if result.ChatCmdError != nil {
+		return commandErrorFromRaw(result.Message.Resp.Type, result.Message.Resp.Raw)
+	}
+	return fmt.Errorf("missing response payload for %s", result.Message.Resp.Type)
+}
+
+func (c *Client) LeaveGroup(ctx context.Context, groupID int64) error {
+	result, err := c.SendAPILeaveGroup(ctx, command.APILeaveGroup{GroupId: groupID})
+	if err != nil {
+		return err
+	}
+	if result.LeftMemberUser != nil {
+		return nil
+	}
+	if result.ChatCmdError != nil {
+		return commandErrorFromRaw(result.Message.Resp.Type, result.Message.Resp.Raw)
+	}
+	return fmt.Errorf("missing response payload for %s", result.Message.Resp.Type)
+}
+
+func (c *Client) ListGroupMembers(ctx context.Context, groupID int64) (json.RawMessage, error) {
+	result, err := c.SendAPIListMembers(ctx, command.APIListMembers{GroupId: groupID})
+	if err != nil {
+		return nil, err
+	}
+	if result.GroupMembers != nil {
+		return append([]byte(nil), result.GroupMembers.Group...), nil
+	}
+	if result.ChatCmdError != nil {
+		return nil, commandErrorFromRaw(result.Message.Resp.Type, result.Message.Resp.Raw)
+	}
+	return nil, fmt.Errorf("missing response payload for %s", result.Message.Resp.Type)
+}
+
 func (c *Client) CreateContactInvitation(ctx context.Context, userID int64, incognito bool) (string, error) {
 	result, err := c.SendAPIAddContact(ctx, command.APIAddContact{
 		UserId:    userID,
