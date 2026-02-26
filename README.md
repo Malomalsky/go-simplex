@@ -63,3 +63,18 @@ if err := rt.Run(ctx); err != nil && !errors.Is(err, context.Canceled) {
     panic(err)
 }
 ```
+
+High-level helper methods currently available on `*client.Client`:
+
+- `GetActiveUser`
+- `GetUserAddress`
+- `CreateUserAddress`
+- `EnsureUserAddress`
+- `EnableAddressAutoAccept`
+- `SendTextMessage`
+
+Runnable example:
+
+```bash
+go run ./examples/echo
+```
