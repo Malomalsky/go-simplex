@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -282,5 +283,32 @@ func TestUnknownCorrIDReportsError(t *testing.T) {
 		}
 	case <-time.After(2 * time.Second):
 		t.Fatalf("timeout waiting for error event")
+	}
+}
+
+type panicRequest struct{}
+
+func (panicRequest) CommandString() string {
+	panic("boom")
+}
+
+func TestSendRecoversCommandStringPanic(t *testing.T) {
+	t.Parallel()
+
+	transport := newMockTransport()
+	c, err := New(transport)
+	if err != nil {
+		t.Fatalf("new client: %v", err)
+	}
+	t.Cleanup(func() {
+		_ = c.Close(context.Background())
+	})
+
+	_, err = c.Send(context.Background(), panicRequest{})
+	if err == nil {
+		t.Fatalf("expected error for command string panic")
+	}
+	if !strings.Contains(err.Error(), "build command string panic") {
+		t.Fatalf("unexpected panic conversion error: %v", err)
 	}
 }

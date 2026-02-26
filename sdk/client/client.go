@@ -171,7 +171,12 @@ func (c *Client) Send(ctx context.Context, req command.Request) (protocol.Messag
 		return protocol.Message{}, fmt.Errorf("request is nil")
 	}
 
-	msg, err := c.SendRaw(ctx, req.CommandString())
+	cmdString, err := safeCommandString(req)
+	if err != nil {
+		return protocol.Message{}, err
+	}
+
+	msg, err := c.SendRaw(ctx, cmdString)
 	if err != nil {
 		return protocol.Message{}, err
 	}
@@ -314,4 +319,14 @@ func containsString(values []string, target string) bool {
 		}
 	}
 	return false
+}
+
+func safeCommandString(req command.Request) (cmd string, err error) {
+	defer func() {
+		if rec := recover(); rec != nil {
+			err = fmt.Errorf("build command string panic: %v", rec)
+		}
+	}()
+	cmd = req.CommandString()
+	return cmd, err
 }
