@@ -90,6 +90,36 @@ func TestEnsureUserAddress(t *testing.T) {
 	}
 }
 
+func TestDeleteUserAddress(t *testing.T) {
+	t.Parallel()
+
+	transport := newMockTransport()
+	c, err := New(transport)
+	if err != nil {
+		t.Fatalf("new client: %v", err)
+	}
+	defer c.Close(context.Background())
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	done := make(chan struct{})
+	go func() {
+		rawReq := <-transport.writeCh
+		var req struct {
+			CorrID string `json:"corrId"`
+		}
+		_ = json.Unmarshal(rawReq, &req)
+		transport.readCh <- []byte(`{"corrId":"` + req.CorrID + `","resp":{"type":"userContactLinkDeleted","user":{"userId":1}}}`)
+		close(done)
+	}()
+
+	if err := c.DeleteUserAddress(ctx, 1); err != nil {
+		t.Fatalf("DeleteUserAddress: %v", err)
+	}
+	<-done
+}
+
 func TestEnsureUserAddressPropagatesUnexpectedError(t *testing.T) {
 	t.Parallel()
 
@@ -115,6 +145,100 @@ func TestEnsureUserAddressPropagatesUnexpectedError(t *testing.T) {
 	_, err = c.EnsureUserAddress(ctx, 1)
 	if err == nil {
 		t.Fatalf("expected error")
+	}
+}
+
+func TestListContacts(t *testing.T) {
+	t.Parallel()
+
+	transport := newMockTransport()
+	c, err := New(transport)
+	if err != nil {
+		t.Fatalf("new client: %v", err)
+	}
+	defer c.Close(context.Background())
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	done := make(chan struct{})
+	go func() {
+		rawReq := <-transport.writeCh
+		var req struct {
+			CorrID string `json:"corrId"`
+		}
+		_ = json.Unmarshal(rawReq, &req)
+		transport.readCh <- []byte(`{
+			"corrId":"` + req.CorrID + `",
+			"resp":{
+				"type":"contactsList",
+				"user":{"userId":1,"profile":{"displayName":"bot"}},
+				"contacts":[
+					{"contactId":42,"profile":{"displayName":"alice"}},
+					{"contactId":43,"profile":{"displayName":"bob"}}
+				]
+			}
+		}`)
+		close(done)
+	}()
+
+	contacts, err := c.ListContacts(ctx, 1)
+	if err != nil {
+		t.Fatalf("ListContacts: %v", err)
+	}
+	<-done
+
+	if len(contacts) != 2 {
+		t.Fatalf("unexpected contacts count: %d", len(contacts))
+	}
+	if contacts[0].ContactID != 42 || contacts[0].Profile.DisplayName != "alice" {
+		t.Fatalf("unexpected first contact: %+v", contacts[0])
+	}
+}
+
+func TestListGroups(t *testing.T) {
+	t.Parallel()
+
+	transport := newMockTransport()
+	c, err := New(transport)
+	if err != nil {
+		t.Fatalf("new client: %v", err)
+	}
+	defer c.Close(context.Background())
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	done := make(chan struct{})
+	go func() {
+		rawReq := <-transport.writeCh
+		var req struct {
+			CorrID string `json:"corrId"`
+		}
+		_ = json.Unmarshal(rawReq, &req)
+		transport.readCh <- []byte(`{
+			"corrId":"` + req.CorrID + `",
+			"resp":{
+				"type":"groupsList",
+				"user":{"userId":1,"profile":{"displayName":"bot"}},
+				"groups":[{"groupId":7},{"groupId":8}]
+			}
+		}`)
+		close(done)
+	}()
+
+	contactID := int64(42)
+	groups, err := c.ListGroups(ctx, 1, &contactID, "support")
+	if err != nil {
+		t.Fatalf("ListGroups: %v", err)
+	}
+	<-done
+
+	if len(groups) != 2 {
+		t.Fatalf("unexpected groups count: %d", len(groups))
+	}
+	if string(groups[0]) == "" {
+		t.Fatalf("unexpected empty group payload")
 	}
 }
 

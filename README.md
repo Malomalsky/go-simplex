@@ -76,7 +76,10 @@ High-level helper methods currently available on `*client.Client`:
 - `GetActiveUser`
 - `GetUserAddress`
 - `CreateUserAddress`
+- `DeleteUserAddress`
 - `EnsureUserAddress`
+- `ListContacts`
+- `ListGroups`
 - `EnableAddressAutoAccept`
 - `SendTextMessage`
 - `SendTextToContact`

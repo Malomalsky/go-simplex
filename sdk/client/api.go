@@ -86,6 +86,20 @@ func (c *Client) CreateUserAddress(ctx context.Context, userID int64) (string, e
 	return "", fmt.Errorf("missing response payload for %s", result.Message.Resp.Type)
 }
 
+func (c *Client) DeleteUserAddress(ctx context.Context, userID int64) error {
+	result, err := c.SendAPIDeleteMyAddress(ctx, command.APIDeleteMyAddress{UserId: userID})
+	if err != nil {
+		return err
+	}
+	if result.UserContactLinkDeleted != nil {
+		return nil
+	}
+	if result.ChatCmdError != nil {
+		return commandErrorFromRaw(result.Message.Resp.Type, result.Message.Resp.Raw)
+	}
+	return fmt.Errorf("missing response payload for %s", result.Message.Resp.Type)
+}
+
 func (c *Client) EnsureUserAddress(ctx context.Context, userID int64) (string, error) {
 	addr, err := c.GetUserAddress(ctx, userID)
 	if err == nil && addr != "" {
@@ -98,6 +112,42 @@ func (c *Client) EnsureUserAddress(ctx context.Context, userID int64) (string, e
 		}
 	}
 	return c.CreateUserAddress(ctx, userID)
+}
+
+func (c *Client) ListContacts(ctx context.Context, userID int64) ([]types.Contact, error) {
+	result, err := c.SendAPIListContacts(ctx, command.APIListContacts{UserId: userID})
+	if err != nil {
+		return nil, err
+	}
+	if result.ContactsList != nil {
+		return append([]types.Contact(nil), result.ContactsList.Contacts...), nil
+	}
+	if result.ChatCmdError != nil {
+		return nil, commandErrorFromRaw(result.Message.Resp.Type, result.Message.Resp.Raw)
+	}
+	return nil, fmt.Errorf("missing response payload for %s", result.Message.Resp.Type)
+}
+
+func (c *Client) ListGroups(ctx context.Context, userID int64, contactID *int64, search string) ([]json.RawMessage, error) {
+	req := command.APIListGroups{
+		UserId:     userID,
+		ContactId_: contactID,
+	}
+	if search != "" {
+		req.Search = &search
+	}
+
+	result, err := c.SendAPIListGroups(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+	if result.GroupsList != nil {
+		return append([]json.RawMessage(nil), result.GroupsList.Groups...), nil
+	}
+	if result.ChatCmdError != nil {
+		return nil, commandErrorFromRaw(result.Message.Resp.Type, result.Message.Resp.Raw)
+	}
+	return nil, fmt.Errorf("missing response payload for %s", result.Message.Resp.Type)
 }
 
 func (c *Client) EnableAddressAutoAccept(ctx context.Context, userID int64) error {
