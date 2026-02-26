@@ -42,9 +42,25 @@ type Transport interface {
 type Config struct {
 	EventBuffer int
 	ErrorBuffer int
+
+	EventOverflow OverflowPolicy
+	ErrorOverflow OverflowPolicy
+
+	RawCommandValidator RawCommandValidator
+	OnDrop              DropHandler
 }
 
 type Option func(*Config)
+
+type OverflowPolicy int
+
+const (
+	OverflowPolicyBlock OverflowPolicy = iota
+	OverflowPolicyDropNewest
+)
+
+type RawCommandValidator func(cmd string) error
+type DropHandler func(kind string, dropped uint64)
 
 func WithEventBuffer(size int) Option {
 	return func(c *Config) {
@@ -62,10 +78,53 @@ func WithErrorBuffer(size int) Option {
 	}
 }
 
+func WithEventOverflowPolicy(policy OverflowPolicy) Option {
+	return func(c *Config) {
+		c.EventOverflow = policy
+	}
+}
+
+func WithErrorOverflowPolicy(policy OverflowPolicy) Option {
+	return func(c *Config) {
+		c.ErrorOverflow = policy
+	}
+}
+
+func WithRawCommandValidator(validator RawCommandValidator) Option {
+	return func(c *Config) {
+		c.RawCommandValidator = validator
+	}
+}
+
+func WithRawCommandAllowPrefixes(prefixes ...string) Option {
+	allowed := make([]string, 0, len(prefixes))
+	for _, p := range prefixes {
+		if p != "" {
+			allowed = append(allowed, p)
+		}
+	}
+	return WithRawCommandValidator(func(cmd string) error {
+		for _, p := range allowed {
+			if strings.HasPrefix(cmd, p) {
+				return nil
+			}
+		}
+		return fmt.Errorf("command does not match allowlist prefixes")
+	})
+}
+
+func WithDropHandler(handler DropHandler) Option {
+	return func(c *Config) {
+		c.OnDrop = handler
+	}
+}
+
 func defaultConfig() Config {
 	return Config{
-		EventBuffer: 128,
-		ErrorBuffer: 16,
+		EventBuffer:   128,
+		ErrorBuffer:   16,
+		EventOverflow: OverflowPolicyBlock,
+		ErrorOverflow: OverflowPolicyBlock,
 	}
 }
 
@@ -79,6 +138,15 @@ type Client struct {
 
 	events chan protocol.Message
 	errs   chan error
+
+	eventOverflow OverflowPolicy
+	errorOverflow OverflowPolicy
+	onDrop        DropHandler
+
+	rawCommandValidator RawCommandValidator
+
+	droppedEvents uint64
+	droppedErrors uint64
 
 	ctx    context.Context
 	cancel context.CancelFunc
@@ -103,13 +171,17 @@ func New(transport Transport, opts ...Option) (*Client, error) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	c := &Client{
-		transport: transport,
-		events:    make(chan protocol.Message, cfg.EventBuffer),
-		errs:      make(chan error, cfg.ErrorBuffer),
-		ctx:       ctx,
-		cancel:    cancel,
-		done:      make(chan struct{}),
-		pending:   make(map[string]chan pendingResult),
+		transport:           transport,
+		events:              make(chan protocol.Message, cfg.EventBuffer),
+		errs:                make(chan error, cfg.ErrorBuffer),
+		eventOverflow:       cfg.EventOverflow,
+		errorOverflow:       cfg.ErrorOverflow,
+		onDrop:              cfg.OnDrop,
+		rawCommandValidator: cfg.RawCommandValidator,
+		ctx:                 ctx,
+		cancel:              cancel,
+		done:                make(chan struct{}),
+		pending:             make(map[string]chan pendingResult),
 	}
 	go c.readLoop()
 	return c, nil
@@ -130,6 +202,11 @@ func (c *Client) Done() <-chan struct{} {
 func (c *Client) SendRaw(ctx context.Context, cmd string) (protocol.Message, error) {
 	if cmd == "" {
 		return protocol.Message{}, fmt.Errorf("cmd is required")
+	}
+	if c.rawCommandValidator != nil {
+		if err := c.rawCommandValidator(cmd); err != nil {
+			return protocol.Message{}, fmt.Errorf("raw command rejected: %w", err)
+		}
 	}
 	if err := c.ensureOpen(); err != nil {
 		return protocol.Message{}, err
@@ -285,6 +362,20 @@ func (c *Client) failPending(err error) {
 }
 
 func (c *Client) emitEvent(msg protocol.Message) {
+	if c.eventOverflow == OverflowPolicyDropNewest {
+		select {
+		case c.events <- msg:
+			return
+		default:
+			dropped := atomic.AddUint64(&c.droppedEvents, 1)
+			c.notifyDrop("event", dropped)
+			return
+		case <-c.done:
+			return
+		case <-c.ctx.Done():
+			return
+		}
+	}
 	select {
 	case c.events <- msg:
 	case <-c.done:
@@ -295,6 +386,20 @@ func (c *Client) emitEvent(msg protocol.Message) {
 func (c *Client) emitErr(err error) {
 	if err == nil {
 		return
+	}
+	if c.errorOverflow == OverflowPolicyDropNewest {
+		select {
+		case c.errs <- err:
+			return
+		default:
+			dropped := atomic.AddUint64(&c.droppedErrors, 1)
+			c.notifyDrop("error", dropped)
+			return
+		case <-c.done:
+			return
+		case <-c.ctx.Done():
+			return
+		}
 	}
 	select {
 	case c.errs <- err:
@@ -319,6 +424,20 @@ func containsString(values []string, target string) bool {
 		}
 	}
 	return false
+}
+
+func (c *Client) DroppedEvents() uint64 {
+	return atomic.LoadUint64(&c.droppedEvents)
+}
+
+func (c *Client) DroppedErrors() uint64 {
+	return atomic.LoadUint64(&c.droppedErrors)
+}
+
+func (c *Client) notifyDrop(kind string, dropped uint64) {
+	if c.onDrop != nil {
+		c.onDrop(kind, dropped)
+	}
 }
 
 func safeCommandString(req command.Request) (cmd string, err error) {

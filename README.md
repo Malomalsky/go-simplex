@@ -139,6 +139,14 @@ High-level helper methods currently available on `*client.Client`:
 - `ReceiveFile`
 - `CancelFile`
 
+Client safety/stability options:
+
+- `client.WithRawCommandAllowPrefixes(...)`
+- `client.WithRawCommandValidator(...)`
+- `client.WithEventOverflowPolicy(client.OverflowPolicyDropNewest)`
+- `client.WithErrorOverflowPolicy(client.OverflowPolicyDropNewest)`
+- `client.WithDropHandler(...)`
+
 Runnable example:
 
 ```bash

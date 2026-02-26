@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -310,5 +311,174 @@ func TestSendRecoversCommandStringPanic(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "build command string panic") {
 		t.Fatalf("unexpected panic conversion error: %v", err)
+	}
+}
+
+func TestSendRawRejectsByValidator(t *testing.T) {
+	t.Parallel()
+
+	transport := newMockTransport()
+	c, err := New(transport, WithRawCommandValidator(func(cmd string) error {
+		if strings.HasPrefix(cmd, "/user") {
+			return nil
+		}
+		return fmt.Errorf("blocked by validator")
+	}))
+	if err != nil {
+		t.Fatalf("new client: %v", err)
+	}
+	t.Cleanup(func() {
+		_ = c.Close(context.Background())
+	})
+
+	_, err = c.SendRaw(context.Background(), "/_delete @1 entity")
+	if err == nil {
+		t.Fatalf("expected validator rejection")
+	}
+	if !strings.Contains(err.Error(), "raw command rejected") {
+		t.Fatalf("unexpected validator error: %v", err)
+	}
+
+	select {
+	case <-transport.writeCh:
+		t.Fatalf("validator-rejected command should not be written")
+	default:
+	}
+}
+
+func TestSendRawAllowPrefixes(t *testing.T) {
+	t.Parallel()
+
+	transport := newMockTransport()
+	c, err := New(transport, WithRawCommandAllowPrefixes("/user", "/_groups "))
+	if err != nil {
+		t.Fatalf("new client: %v", err)
+	}
+	t.Cleanup(func() {
+		_ = c.Close(context.Background())
+	})
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	resultCh := make(chan error, 1)
+	go func() {
+		_, sendErr := c.SendRaw(ctx, "/user")
+		resultCh <- sendErr
+	}()
+
+	rawReq := <-transport.writeCh
+	var req protocol.CommandRequest
+	if err := json.Unmarshal(rawReq, &req); err != nil {
+		t.Fatalf("decode sent request: %v", err)
+	}
+	transport.readCh <- []byte(fmt.Sprintf(`{"corrId":"%s","resp":{"type":"cmdOk"}}`, req.CorrID))
+
+	if err := <-resultCh; err != nil {
+		t.Fatalf("allowed raw command should succeed: %v", err)
+	}
+
+	if _, err := c.SendRaw(context.Background(), "/_delete @1 entity"); err == nil {
+		t.Fatalf("expected disallowed command to be rejected")
+	}
+}
+
+func TestEventOverflowDropNewest(t *testing.T) {
+	t.Parallel()
+
+	var mu sync.Mutex
+	var dropped []string
+
+	transport := newMockTransport()
+	c, err := New(
+		transport,
+		WithEventBuffer(1),
+		WithEventOverflowPolicy(OverflowPolicyDropNewest),
+		WithDropHandler(func(kind string, n uint64) {
+			mu.Lock()
+			dropped = append(dropped, fmt.Sprintf("%s:%d", kind, n))
+			mu.Unlock()
+		}),
+	)
+	if err != nil {
+		t.Fatalf("new client: %v", err)
+	}
+	t.Cleanup(func() {
+		_ = c.Close(context.Background())
+	})
+
+	transport.readCh <- []byte(`{"resp":{"type":"newChatItems","chatItems":[]}}`)
+	transport.readCh <- []byte(`{"resp":{"type":"newChatItems","chatItems":[]}}`)
+
+	deadline := time.After(2 * time.Second)
+	for {
+		if c.DroppedEvents() >= 1 {
+			break
+		}
+		select {
+		case <-deadline:
+			t.Fatalf("timeout waiting dropped event counter")
+		default:
+			time.Sleep(10 * time.Millisecond)
+		}
+	}
+
+	select {
+	case <-c.Events():
+	case <-time.After(2 * time.Second):
+		t.Fatalf("timeout waiting queued event")
+	}
+
+	if got := c.DroppedEvents(); got == 0 {
+		t.Fatalf("expected dropped events > 0")
+	}
+
+	mu.Lock()
+	defer mu.Unlock()
+	if len(dropped) == 0 {
+		t.Fatalf("expected drop handler to be called")
+	}
+}
+
+func TestErrorOverflowDropNewest(t *testing.T) {
+	t.Parallel()
+
+	transport := newMockTransport()
+	c, err := New(
+		transport,
+		WithErrorBuffer(1),
+		WithErrorOverflowPolicy(OverflowPolicyDropNewest),
+	)
+	if err != nil {
+		t.Fatalf("new client: %v", err)
+	}
+	t.Cleanup(func() {
+		_ = c.Close(context.Background())
+	})
+
+	transport.readCh <- []byte(`{"corrId":"100","resp":{"type":"cmdOk"}}`)
+	transport.readCh <- []byte(`{"corrId":"101","resp":{"type":"cmdOk"}}`)
+
+	deadline := time.After(2 * time.Second)
+	for {
+		if c.DroppedErrors() >= 1 {
+			break
+		}
+		select {
+		case <-deadline:
+			t.Fatalf("timeout waiting dropped error counter")
+		default:
+			time.Sleep(10 * time.Millisecond)
+		}
+	}
+
+	select {
+	case <-c.Errors():
+	case <-time.After(2 * time.Second):
+		t.Fatalf("timeout waiting queued error")
+	}
+
+	if got := c.DroppedErrors(); got == 0 {
+		t.Fatalf("expected dropped errors > 0")
 	}
 }
