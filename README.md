@@ -79,6 +79,8 @@ High-level helper methods currently available on `*client.Client`:
 - `EnsureUserAddress`
 - `EnableAddressAutoAccept`
 - `SendTextMessage`
+- `SendTextToContact`
+- `SendTextToGroup`
 
 Runnable example:
 

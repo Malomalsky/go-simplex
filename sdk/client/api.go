@@ -170,3 +170,11 @@ func (c *Client) SendTextMessage(ctx context.Context, sendRef string, text strin
 		return fmt.Errorf("unexpected response type: %s", msg.Resp.Type)
 	}
 }
+
+func (c *Client) SendTextToContact(ctx context.Context, contactID int64, text string) error {
+	return c.SendTextMessage(ctx, command.DirectRef(contactID), text)
+}
+
+func (c *Client) SendTextToGroup(ctx context.Context, groupID int64, text string) error {
+	return c.SendTextMessage(ctx, command.GroupRef(groupID), text)
+}
