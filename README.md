@@ -97,3 +97,15 @@ and produces:
 - `sdk/command/generated_catalog.go`
 - `sdk/types/generated_tags.go`
 - `sdk/types/generated_records.go`
+
+To refresh snapshots from upstream and regenerate in one step:
+
+```bash
+./scripts/update-upstream.sh
+```
+
+Optional branch/ref:
+
+```bash
+./scripts/update-upstream.sh stable
+```
