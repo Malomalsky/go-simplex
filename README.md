@@ -152,6 +152,7 @@ Client safety/stability options:
 - `client.WithRawCommandAllowPrefixes(...)`
 - `client.WithRawCommandValidator(...)`
 - `client.WithRawCommandMaxBytes(...)`
+- `client.WithStrictResponses(false)` for forward-compatible unknown `resp.type`
 - `client.WithEventOverflowPolicy(client.OverflowPolicyDropNewest)`
 - `client.WithErrorOverflowPolicy(client.OverflowPolicyDropNewest)`
 - `client.WithDropHandler(...)`

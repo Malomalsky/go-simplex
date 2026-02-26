@@ -4,7 +4,6 @@ package client
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/Malomalsky/go-simplex/sdk/command"
 	"github.com/Malomalsky/go-simplex/sdk/protocol"
@@ -37,7 +36,7 @@ func (c *Client) SendAPICreateMyAddress(ctx context.Context, req command.APICrea
 		}
 		out.ChatCmdError = &v
 	default:
-		return APICreateMyAddressResult{}, fmt.Errorf("unexpected response type: %s", msg.Resp.Type)
+		return out, nil
 	}
 	return out, nil
 }
@@ -68,7 +67,7 @@ func (c *Client) SendAPIDeleteMyAddress(ctx context.Context, req command.APIDele
 		}
 		out.ChatCmdError = &v
 	default:
-		return APIDeleteMyAddressResult{}, fmt.Errorf("unexpected response type: %s", msg.Resp.Type)
+		return out, nil
 	}
 	return out, nil
 }
@@ -99,7 +98,7 @@ func (c *Client) SendAPIShowMyAddress(ctx context.Context, req command.APIShowMy
 		}
 		out.ChatCmdError = &v
 	default:
-		return APIShowMyAddressResult{}, fmt.Errorf("unexpected response type: %s", msg.Resp.Type)
+		return out, nil
 	}
 	return out, nil
 }
@@ -130,7 +129,7 @@ func (c *Client) SendAPISetProfileAddress(ctx context.Context, req command.APISe
 		}
 		out.ChatCmdError = &v
 	default:
-		return APISetProfileAddressResult{}, fmt.Errorf("unexpected response type: %s", msg.Resp.Type)
+		return out, nil
 	}
 	return out, nil
 }
@@ -161,7 +160,7 @@ func (c *Client) SendAPISetAddressSettings(ctx context.Context, req command.APIS
 		}
 		out.ChatCmdError = &v
 	default:
-		return APISetAddressSettingsResult{}, fmt.Errorf("unexpected response type: %s", msg.Resp.Type)
+		return out, nil
 	}
 	return out, nil
 }
@@ -192,7 +191,7 @@ func (c *Client) SendAPISendMessages(ctx context.Context, req command.APISendMes
 		}
 		out.ChatCmdError = &v
 	default:
-		return APISendMessagesResult{}, fmt.Errorf("unexpected response type: %s", msg.Resp.Type)
+		return out, nil
 	}
 	return out, nil
 }
@@ -230,7 +229,7 @@ func (c *Client) SendAPIUpdateChatItem(ctx context.Context, req command.APIUpdat
 		}
 		out.ChatCmdError = &v
 	default:
-		return APIUpdateChatItemResult{}, fmt.Errorf("unexpected response type: %s", msg.Resp.Type)
+		return out, nil
 	}
 	return out, nil
 }
@@ -261,7 +260,7 @@ func (c *Client) SendAPIDeleteChatItem(ctx context.Context, req command.APIDelet
 		}
 		out.ChatCmdError = &v
 	default:
-		return APIDeleteChatItemResult{}, fmt.Errorf("unexpected response type: %s", msg.Resp.Type)
+		return out, nil
 	}
 	return out, nil
 }
@@ -292,7 +291,7 @@ func (c *Client) SendAPIDeleteMemberChatItem(ctx context.Context, req command.AP
 		}
 		out.ChatCmdError = &v
 	default:
-		return APIDeleteMemberChatItemResult{}, fmt.Errorf("unexpected response type: %s", msg.Resp.Type)
+		return out, nil
 	}
 	return out, nil
 }
@@ -323,7 +322,7 @@ func (c *Client) SendAPIChatItemReaction(ctx context.Context, req command.APICha
 		}
 		out.ChatCmdError = &v
 	default:
-		return APIChatItemReactionResult{}, fmt.Errorf("unexpected response type: %s", msg.Resp.Type)
+		return out, nil
 	}
 	return out, nil
 }
@@ -361,7 +360,7 @@ func (c *Client) SendReceiveFile(ctx context.Context, req command.ReceiveFile) (
 		}
 		out.ChatCmdError = &v
 	default:
-		return ReceiveFileResult{}, fmt.Errorf("unexpected response type: %s", msg.Resp.Type)
+		return out, nil
 	}
 	return out, nil
 }
@@ -399,7 +398,7 @@ func (c *Client) SendCancelFile(ctx context.Context, req command.CancelFile) (Ca
 		}
 		out.ChatCmdError = &v
 	default:
-		return CancelFileResult{}, fmt.Errorf("unexpected response type: %s", msg.Resp.Type)
+		return out, nil
 	}
 	return out, nil
 }
@@ -430,7 +429,7 @@ func (c *Client) SendAPIAddMember(ctx context.Context, req command.APIAddMember)
 		}
 		out.ChatCmdError = &v
 	default:
-		return APIAddMemberResult{}, fmt.Errorf("unexpected response type: %s", msg.Resp.Type)
+		return out, nil
 	}
 	return out, nil
 }
@@ -461,7 +460,7 @@ func (c *Client) SendAPIJoinGroup(ctx context.Context, req command.APIJoinGroup)
 		}
 		out.ChatCmdError = &v
 	default:
-		return APIJoinGroupResult{}, fmt.Errorf("unexpected response type: %s", msg.Resp.Type)
+		return out, nil
 	}
 	return out, nil
 }
@@ -492,7 +491,7 @@ func (c *Client) SendAPIAcceptMember(ctx context.Context, req command.APIAcceptM
 		}
 		out.ChatCmdError = &v
 	default:
-		return APIAcceptMemberResult{}, fmt.Errorf("unexpected response type: %s", msg.Resp.Type)
+		return out, nil
 	}
 	return out, nil
 }
@@ -523,7 +522,7 @@ func (c *Client) SendAPIMembersRole(ctx context.Context, req command.APIMembersR
 		}
 		out.ChatCmdError = &v
 	default:
-		return APIMembersRoleResult{}, fmt.Errorf("unexpected response type: %s", msg.Resp.Type)
+		return out, nil
 	}
 	return out, nil
 }
@@ -554,7 +553,7 @@ func (c *Client) SendAPIBlockMembersForAll(ctx context.Context, req command.APIB
 		}
 		out.ChatCmdError = &v
 	default:
-		return APIBlockMembersForAllResult{}, fmt.Errorf("unexpected response type: %s", msg.Resp.Type)
+		return out, nil
 	}
 	return out, nil
 }
@@ -585,7 +584,7 @@ func (c *Client) SendAPIRemoveMembers(ctx context.Context, req command.APIRemove
 		}
 		out.ChatCmdError = &v
 	default:
-		return APIRemoveMembersResult{}, fmt.Errorf("unexpected response type: %s", msg.Resp.Type)
+		return out, nil
 	}
 	return out, nil
 }
@@ -616,7 +615,7 @@ func (c *Client) SendAPILeaveGroup(ctx context.Context, req command.APILeaveGrou
 		}
 		out.ChatCmdError = &v
 	default:
-		return APILeaveGroupResult{}, fmt.Errorf("unexpected response type: %s", msg.Resp.Type)
+		return out, nil
 	}
 	return out, nil
 }
@@ -647,7 +646,7 @@ func (c *Client) SendAPIListMembers(ctx context.Context, req command.APIListMemb
 		}
 		out.ChatCmdError = &v
 	default:
-		return APIListMembersResult{}, fmt.Errorf("unexpected response type: %s", msg.Resp.Type)
+		return out, nil
 	}
 	return out, nil
 }
@@ -678,7 +677,7 @@ func (c *Client) SendAPINewGroup(ctx context.Context, req command.APINewGroup) (
 		}
 		out.ChatCmdError = &v
 	default:
-		return APINewGroupResult{}, fmt.Errorf("unexpected response type: %s", msg.Resp.Type)
+		return out, nil
 	}
 	return out, nil
 }
@@ -709,7 +708,7 @@ func (c *Client) SendAPIUpdateGroupProfile(ctx context.Context, req command.APIU
 		}
 		out.ChatCmdError = &v
 	default:
-		return APIUpdateGroupProfileResult{}, fmt.Errorf("unexpected response type: %s", msg.Resp.Type)
+		return out, nil
 	}
 	return out, nil
 }
@@ -740,7 +739,7 @@ func (c *Client) SendAPICreateGroupLink(ctx context.Context, req command.APICrea
 		}
 		out.ChatCmdError = &v
 	default:
-		return APICreateGroupLinkResult{}, fmt.Errorf("unexpected response type: %s", msg.Resp.Type)
+		return out, nil
 	}
 	return out, nil
 }
@@ -771,7 +770,7 @@ func (c *Client) SendAPIGroupLinkMemberRole(ctx context.Context, req command.API
 		}
 		out.ChatCmdError = &v
 	default:
-		return APIGroupLinkMemberRoleResult{}, fmt.Errorf("unexpected response type: %s", msg.Resp.Type)
+		return out, nil
 	}
 	return out, nil
 }
@@ -802,7 +801,7 @@ func (c *Client) SendAPIDeleteGroupLink(ctx context.Context, req command.APIDele
 		}
 		out.ChatCmdError = &v
 	default:
-		return APIDeleteGroupLinkResult{}, fmt.Errorf("unexpected response type: %s", msg.Resp.Type)
+		return out, nil
 	}
 	return out, nil
 }
@@ -833,7 +832,7 @@ func (c *Client) SendAPIGetGroupLink(ctx context.Context, req command.APIGetGrou
 		}
 		out.ChatCmdError = &v
 	default:
-		return APIGetGroupLinkResult{}, fmt.Errorf("unexpected response type: %s", msg.Resp.Type)
+		return out, nil
 	}
 	return out, nil
 }
@@ -864,7 +863,7 @@ func (c *Client) SendAPIAddContact(ctx context.Context, req command.APIAddContac
 		}
 		out.ChatCmdError = &v
 	default:
-		return APIAddContactResult{}, fmt.Errorf("unexpected response type: %s", msg.Resp.Type)
+		return out, nil
 	}
 	return out, nil
 }
@@ -895,7 +894,7 @@ func (c *Client) SendAPIConnectPlan(ctx context.Context, req command.APIConnectP
 		}
 		out.ChatCmdError = &v
 	default:
-		return APIConnectPlanResult{}, fmt.Errorf("unexpected response type: %s", msg.Resp.Type)
+		return out, nil
 	}
 	return out, nil
 }
@@ -940,7 +939,7 @@ func (c *Client) SendAPIConnect(ctx context.Context, req command.APIConnect) (AP
 		}
 		out.ChatCmdError = &v
 	default:
-		return APIConnectResult{}, fmt.Errorf("unexpected response type: %s", msg.Resp.Type)
+		return out, nil
 	}
 	return out, nil
 }
@@ -985,7 +984,7 @@ func (c *Client) SendConnect(ctx context.Context, req command.Connect) (ConnectR
 		}
 		out.ChatCmdError = &v
 	default:
-		return ConnectResult{}, fmt.Errorf("unexpected response type: %s", msg.Resp.Type)
+		return out, nil
 	}
 	return out, nil
 }
@@ -1016,7 +1015,7 @@ func (c *Client) SendAPIAcceptContact(ctx context.Context, req command.APIAccept
 		}
 		out.ChatCmdError = &v
 	default:
-		return APIAcceptContactResult{}, fmt.Errorf("unexpected response type: %s", msg.Resp.Type)
+		return out, nil
 	}
 	return out, nil
 }
@@ -1047,7 +1046,7 @@ func (c *Client) SendAPIRejectContact(ctx context.Context, req command.APIReject
 		}
 		out.ChatCmdError = &v
 	default:
-		return APIRejectContactResult{}, fmt.Errorf("unexpected response type: %s", msg.Resp.Type)
+		return out, nil
 	}
 	return out, nil
 }
@@ -1078,7 +1077,7 @@ func (c *Client) SendAPIListContacts(ctx context.Context, req command.APIListCon
 		}
 		out.ChatCmdError = &v
 	default:
-		return APIListContactsResult{}, fmt.Errorf("unexpected response type: %s", msg.Resp.Type)
+		return out, nil
 	}
 	return out, nil
 }
@@ -1109,7 +1108,7 @@ func (c *Client) SendAPIListGroups(ctx context.Context, req command.APIListGroup
 		}
 		out.ChatCmdError = &v
 	default:
-		return APIListGroupsResult{}, fmt.Errorf("unexpected response type: %s", msg.Resp.Type)
+		return out, nil
 	}
 	return out, nil
 }
@@ -1154,7 +1153,7 @@ func (c *Client) SendAPIDeleteChat(ctx context.Context, req command.APIDeleteCha
 		}
 		out.ChatCmdError = &v
 	default:
-		return APIDeleteChatResult{}, fmt.Errorf("unexpected response type: %s", msg.Resp.Type)
+		return out, nil
 	}
 	return out, nil
 }
@@ -1185,7 +1184,7 @@ func (c *Client) SendShowActiveUser(ctx context.Context, req command.ShowActiveU
 		}
 		out.ChatCmdError = &v
 	default:
-		return ShowActiveUserResult{}, fmt.Errorf("unexpected response type: %s", msg.Resp.Type)
+		return out, nil
 	}
 	return out, nil
 }
@@ -1216,7 +1215,7 @@ func (c *Client) SendCreateActiveUser(ctx context.Context, req command.CreateAct
 		}
 		out.ChatCmdError = &v
 	default:
-		return CreateActiveUserResult{}, fmt.Errorf("unexpected response type: %s", msg.Resp.Type)
+		return out, nil
 	}
 	return out, nil
 }
@@ -1247,7 +1246,7 @@ func (c *Client) SendListUsers(ctx context.Context, req command.ListUsers) (List
 		}
 		out.ChatCmdError = &v
 	default:
-		return ListUsersResult{}, fmt.Errorf("unexpected response type: %s", msg.Resp.Type)
+		return out, nil
 	}
 	return out, nil
 }
@@ -1278,7 +1277,7 @@ func (c *Client) SendAPISetActiveUser(ctx context.Context, req command.APISetAct
 		}
 		out.ChatCmdError = &v
 	default:
-		return APISetActiveUserResult{}, fmt.Errorf("unexpected response type: %s", msg.Resp.Type)
+		return out, nil
 	}
 	return out, nil
 }
@@ -1309,7 +1308,7 @@ func (c *Client) SendAPIDeleteUser(ctx context.Context, req command.APIDeleteUse
 		}
 		out.ChatCmdError = &v
 	default:
-		return APIDeleteUserResult{}, fmt.Errorf("unexpected response type: %s", msg.Resp.Type)
+		return out, nil
 	}
 	return out, nil
 }
@@ -1347,7 +1346,7 @@ func (c *Client) SendAPIUpdateProfile(ctx context.Context, req command.APIUpdate
 		}
 		out.ChatCmdError = &v
 	default:
-		return APIUpdateProfileResult{}, fmt.Errorf("unexpected response type: %s", msg.Resp.Type)
+		return out, nil
 	}
 	return out, nil
 }
@@ -1378,7 +1377,7 @@ func (c *Client) SendAPISetContactPrefs(ctx context.Context, req command.APISetC
 		}
 		out.ChatCmdError = &v
 	default:
-		return APISetContactPrefsResult{}, fmt.Errorf("unexpected response type: %s", msg.Resp.Type)
+		return out, nil
 	}
 	return out, nil
 }

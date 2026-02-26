@@ -48,6 +48,7 @@ type Config struct {
 	ErrorOverflow OverflowPolicy
 
 	RawCommandMaxBytes int
+	StrictResponses    bool
 
 	RawCommandValidator RawCommandValidator
 	OnDrop              DropHandler
@@ -107,6 +108,12 @@ func WithRawCommandMaxBytes(max int) Option {
 	}
 }
 
+func WithStrictResponses(strict bool) Option {
+	return func(c *Config) {
+		c.StrictResponses = strict
+	}
+}
+
 func WithRawCommandAllowPrefixes(prefixes ...string) Option {
 	allowed := make([]string, 0, len(prefixes))
 	for _, p := range prefixes {
@@ -137,6 +144,7 @@ func defaultConfig() Config {
 		EventOverflow:      OverflowPolicyBlock,
 		ErrorOverflow:      OverflowPolicyBlock,
 		RawCommandMaxBytes: 1 << 20, // 1 MiB upper bound to avoid unbounded command payloads.
+		StrictResponses:    true,
 	}
 }
 
@@ -157,6 +165,7 @@ type Client struct {
 
 	rawCommandValidator RawCommandValidator
 	rawCommandMaxBytes  int
+	strictResponses     bool
 
 	droppedEvents uint64
 	droppedErrors uint64
@@ -192,6 +201,7 @@ func New(transport Transport, opts ...Option) (*Client, error) {
 		onDrop:              cfg.OnDrop,
 		rawCommandMaxBytes:  cfg.RawCommandMaxBytes,
 		rawCommandValidator: cfg.RawCommandValidator,
+		strictResponses:     cfg.StrictResponses,
 		ctx:                 ctx,
 		cancel:              cancel,
 		done:                make(chan struct{}),
@@ -277,6 +287,9 @@ func (c *Client) Send(ctx context.Context, req command.Request) (protocol.Messag
 		return msg, nil
 	}
 	if containsString(expected, msg.Resp.Type) {
+		return msg, nil
+	}
+	if !c.strictResponses {
 		return msg, nil
 	}
 

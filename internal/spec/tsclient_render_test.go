@@ -32,4 +32,7 @@ func TestRenderClientSendersGo(t *testing.T) {
 	if !strings.Contains(code, "case types.ResponseTypeActiveUser:") {
 		t.Fatalf("missing response switch case")
 	}
+	if !strings.Contains(code, "default:\n\t\treturn out, nil") {
+		t.Fatalf("missing tolerant default branch")
+	}
 }

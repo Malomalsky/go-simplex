@@ -192,6 +192,47 @@ func TestSendRejectsUnexpectedResponseType(t *testing.T) {
 	}
 }
 
+func TestSendAllowsUnexpectedResponseTypeWhenStrictDisabled(t *testing.T) {
+	t.Parallel()
+
+	transport := newMockTransport()
+	c, err := New(transport, WithStrictResponses(false))
+	if err != nil {
+		t.Fatalf("new client: %v", err)
+	}
+	t.Cleanup(func() {
+		_ = c.Close(context.Background())
+	})
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	type sendResult struct {
+		msg protocol.Message
+		err error
+	}
+	resultCh := make(chan sendResult, 1)
+	go func() {
+		msg, sendErr := c.Send(ctx, command.ShowActiveUser{})
+		resultCh <- sendResult{msg: msg, err: sendErr}
+	}()
+
+	rawReq := <-transport.writeCh
+	var req protocol.CommandRequest
+	if err := json.Unmarshal(rawReq, &req); err != nil {
+		t.Fatalf("decode sent request: %v", err)
+	}
+	transport.readCh <- []byte(fmt.Sprintf(`{"corrId":"%s","resp":{"type":"cmdOk"}}`, req.CorrID))
+
+	res := <-resultCh
+	if res.err != nil {
+		t.Fatalf("unexpected send error: %v", res.err)
+	}
+	if got, want := res.msg.Resp.Type, "cmdOk"; got != want {
+		t.Fatalf("unexpected response type: got %q want %q", got, want)
+	}
+}
+
 func TestGeneratedSenderMethod(t *testing.T) {
 	t.Parallel()
 
@@ -233,6 +274,50 @@ func TestGeneratedSenderMethod(t *testing.T) {
 	}
 	if res.res.ChatCmdError != nil {
 		t.Fatalf("unexpected ChatCmdError response")
+	}
+}
+
+func TestGeneratedSenderUnknownResponseWhenStrictDisabled(t *testing.T) {
+	t.Parallel()
+
+	transport := newMockTransport()
+	c, err := New(transport, WithStrictResponses(false))
+	if err != nil {
+		t.Fatalf("new client: %v", err)
+	}
+	t.Cleanup(func() {
+		_ = c.Close(context.Background())
+	})
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	type sendResult struct {
+		res ShowActiveUserResult
+		err error
+	}
+	resultCh := make(chan sendResult, 1)
+	go func() {
+		res, sendErr := c.SendShowActiveUser(ctx, command.ShowActiveUser{})
+		resultCh <- sendResult{res: res, err: sendErr}
+	}()
+
+	rawReq := <-transport.writeCh
+	var req protocol.CommandRequest
+	if err := json.Unmarshal(rawReq, &req); err != nil {
+		t.Fatalf("decode sent request: %v", err)
+	}
+	transport.readCh <- []byte(fmt.Sprintf(`{"corrId":"%s","resp":{"type":"cmdOk"}}`, req.CorrID))
+
+	res := <-resultCh
+	if res.err != nil {
+		t.Fatalf("unexpected generated sender error: %v", res.err)
+	}
+	if got, want := res.res.Message.Resp.Type, "cmdOk"; got != want {
+		t.Fatalf("unexpected response type: got %q want %q", got, want)
+	}
+	if res.res.ActiveUser != nil || res.res.ChatCmdError != nil {
+		t.Fatalf("typed payload pointers should stay nil for unknown response")
 	}
 }
 

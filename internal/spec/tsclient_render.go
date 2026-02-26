@@ -21,7 +21,6 @@ func RenderClientSendersGo(pkg string, commands []TSCommand) ([]byte, error) {
 	b.WriteString("\n\n")
 	b.WriteString("import (\n")
 	b.WriteString("\t\"context\"\n")
-	b.WriteString("\t\"fmt\"\n")
 	b.WriteString("\n")
 	b.WriteString("\t\"github.com/Malomalsky/go-simplex/sdk/command\"\n")
 	b.WriteString("\t\"github.com/Malomalsky/go-simplex/sdk/protocol\"\n")
@@ -83,9 +82,7 @@ func RenderClientSendersGo(pkg string, commands []TSCommand) ([]byte, error) {
 			b.WriteString(" = &v\n")
 		}
 		b.WriteString("\tdefault:\n")
-		b.WriteString("\t\treturn ")
-		b.WriteString(resultType)
-		b.WriteString("{}, fmt.Errorf(\"unexpected response type: %s\", msg.Resp.Type)\n")
+		b.WriteString("\t\treturn out, nil\n")
 		b.WriteString("\t}\n")
 		b.WriteString("\treturn out, nil\n")
 		b.WriteString("}\n\n")
