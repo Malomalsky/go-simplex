@@ -91,12 +91,14 @@ go run ./examples/echo
 The generator currently reads:
 
 - `spec/upstream/COMMANDS.md`
+- `spec/upstream/commands.ts`
 - `spec/upstream/events.ts`
 - `spec/upstream/responses.ts`
 
 and produces:
 
 - `sdk/command/generated_catalog.go`
+- `sdk/command/generated_requests.go`
 - `sdk/types/generated_tags.go`
 - `sdk/types/generated_records.go`
 

@@ -58,7 +58,7 @@ func (c *Client) GetActiveUser(ctx context.Context) (*types.User, error) {
 }
 
 func (c *Client) GetUserAddress(ctx context.Context, userID int64) (string, error) {
-	msg, err := c.Send(ctx, command.APIShowMyAddress{UserID: userID})
+	msg, err := c.Send(ctx, command.APIShowMyAddress{UserId: userID})
 	if err != nil {
 		return "", err
 	}
@@ -78,7 +78,7 @@ func (c *Client) GetUserAddress(ctx context.Context, userID int64) (string, erro
 }
 
 func (c *Client) CreateUserAddress(ctx context.Context, userID int64) (string, error) {
-	msg, err := c.Send(ctx, command.APICreateMyAddress{UserID: userID})
+	msg, err := c.Send(ctx, command.APICreateMyAddress{UserId: userID})
 	if err != nil {
 		return "", err
 	}
@@ -120,7 +120,7 @@ func (c *Client) EnableAddressAutoAccept(ctx context.Context, userID int64) erro
 	}
 
 	msg, err := c.Send(ctx, command.APISetAddressSettings{
-		UserID:   userID,
+		UserId:   userID,
 		Settings: settings,
 	})
 	if err != nil {
@@ -142,7 +142,7 @@ func (c *Client) EnableAddressAutoAccept(ctx context.Context, userID int64) erro
 }
 
 func (c *Client) SendTextMessage(ctx context.Context, sendRef string, text string) error {
-	payload := []any{
+	payload := []map[string]any{
 		map[string]any{
 			"msgContent": map[string]any{
 				"type": "text",

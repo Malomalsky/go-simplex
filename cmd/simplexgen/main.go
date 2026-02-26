@@ -18,6 +18,8 @@ func main() {
 		respPath   string
 		tagsOut    string
 		recordsOut string
+		cmdTSPath  string
+		reqOut     string
 	)
 
 	flag.StringVar(&inputPath, "input", "spec/upstream/COMMANDS.md", "path to COMMANDS.md")
@@ -27,15 +29,17 @@ func main() {
 	flag.StringVar(&respPath, "responses", "spec/upstream/responses.ts", "path to upstream responses.ts")
 	flag.StringVar(&tagsOut, "out-tags", "sdk/types/generated_tags.go", "generated event/response tag constants file")
 	flag.StringVar(&recordsOut, "out-records", "sdk/types/generated_records.go", "generated event/response records file")
+	flag.StringVar(&cmdTSPath, "commands-ts", "spec/upstream/commands.ts", "path to upstream commands.ts")
+	flag.StringVar(&reqOut, "out-requests", "sdk/command/generated_requests.go", "generated command request structs file")
 	flag.Parse()
 
-	if err := run(inputPath, outputPath, pkgName, eventsPath, respPath, tagsOut, recordsOut); err != nil {
+	if err := run(inputPath, outputPath, pkgName, eventsPath, respPath, tagsOut, recordsOut, cmdTSPath, reqOut); err != nil {
 		fmt.Fprintf(os.Stderr, "simplexgen: %v\n", err)
 		os.Exit(1)
 	}
 }
 
-func run(inputPath, outputPath, pkgName, eventsPath, respPath, tagsOut, recordsOut string) error {
+func run(inputPath, outputPath, pkgName, eventsPath, respPath, tagsOut, recordsOut, cmdTSPath, reqOut string) error {
 	in, err := os.Open(inputPath)
 	if err != nil {
 		return fmt.Errorf("open input: %w", err)
@@ -96,6 +100,27 @@ func run(inputPath, outputPath, pkgName, eventsPath, respPath, tagsOut, recordsO
 	}
 	if err := os.WriteFile(recordsOut, records, 0o644); err != nil {
 		return fmt.Errorf("write records output file: %w", err)
+	}
+
+	cmdTSFile, err := os.Open(cmdTSPath)
+	if err != nil {
+		return fmt.Errorf("open commands.ts: %w", err)
+	}
+	defer cmdTSFile.Close()
+
+	tsCommands, err := spec.ParseTSCommands(cmdTSFile, doc)
+	if err != nil {
+		return fmt.Errorf("parse ts commands: %w", err)
+	}
+	reqCode, err := spec.RenderCommandRequestsGo(pkgName, tsCommands)
+	if err != nil {
+		return fmt.Errorf("render command requests: %w", err)
+	}
+	if err := os.MkdirAll(filepath.Dir(reqOut), 0o755); err != nil {
+		return fmt.Errorf("create requests output directory: %w", err)
+	}
+	if err := os.WriteFile(reqOut, reqCode, 0o644); err != nil {
+		return fmt.Errorf("write requests output file: %w", err)
 	}
 	return nil
 }
