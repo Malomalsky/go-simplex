@@ -17,6 +17,7 @@ func main() {
 		eventsPath string
 		respPath   string
 		tagsOut    string
+		recordsOut string
 	)
 
 	flag.StringVar(&inputPath, "input", "spec/upstream/COMMANDS.md", "path to COMMANDS.md")
@@ -25,15 +26,16 @@ func main() {
 	flag.StringVar(&eventsPath, "events", "spec/upstream/events.ts", "path to upstream events.ts")
 	flag.StringVar(&respPath, "responses", "spec/upstream/responses.ts", "path to upstream responses.ts")
 	flag.StringVar(&tagsOut, "out-tags", "sdk/types/generated_tags.go", "generated event/response tag constants file")
+	flag.StringVar(&recordsOut, "out-records", "sdk/types/generated_records.go", "generated event/response records file")
 	flag.Parse()
 
-	if err := run(inputPath, outputPath, pkgName, eventsPath, respPath, tagsOut); err != nil {
+	if err := run(inputPath, outputPath, pkgName, eventsPath, respPath, tagsOut, recordsOut); err != nil {
 		fmt.Fprintf(os.Stderr, "simplexgen: %v\n", err)
 		os.Exit(1)
 	}
 }
 
-func run(inputPath, outputPath, pkgName, eventsPath, respPath, tagsOut string) error {
+func run(inputPath, outputPath, pkgName, eventsPath, respPath, tagsOut, recordsOut string) error {
 	in, err := os.Open(inputPath)
 	if err != nil {
 		return fmt.Errorf("open input: %w", err)
@@ -76,6 +78,25 @@ func run(inputPath, outputPath, pkgName, eventsPath, respPath, tagsOut string) e
 	if err := os.WriteFile(tagsOut, tags, 0o644); err != nil {
 		return fmt.Errorf("write tags output file: %w", err)
 	}
+
+	responseIfaces, err := parseTSInterfaces(respPath)
+	if err != nil {
+		return fmt.Errorf("parse response interfaces: %w", err)
+	}
+	eventIfaces, err := parseTSInterfaces(eventsPath)
+	if err != nil {
+		return fmt.Errorf("parse event interfaces: %w", err)
+	}
+	records, err := spec.RenderTypesRecordsGo("types", responseIfaces, eventIfaces)
+	if err != nil {
+		return fmt.Errorf("render records file: %w", err)
+	}
+	if err := os.MkdirAll(filepath.Dir(recordsOut), 0o755); err != nil {
+		return fmt.Errorf("create records output directory: %w", err)
+	}
+	if err := os.WriteFile(recordsOut, records, 0o644); err != nil {
+		return fmt.Errorf("write records output file: %w", err)
+	}
 	return nil
 }
 
@@ -86,4 +107,13 @@ func parseTaggedTS(path string) ([]spec.TaggedType, error) {
 	}
 	defer f.Close()
 	return spec.ParseTaggedInterfaces(f)
+}
+
+func parseTSInterfaces(path string) ([]spec.TSInterface, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+	return spec.ParseTSInterfaces(f)
 }

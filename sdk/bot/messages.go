@@ -1,7 +1,6 @@
 package bot
 
 import (
-	"encoding/json"
 	"fmt"
 
 	"github.com/Malomalsky/go-simplex/sdk/protocol"
@@ -18,28 +17,8 @@ func ExtractDirectTextMessages(msg protocol.Message) ([]DirectTextMessage, error
 		return nil, fmt.Errorf("unexpected event type: %s", msg.Resp.Type)
 	}
 
-	var payload struct {
-		Type      string `json:"type"`
-		ChatItems []struct {
-			ChatInfo struct {
-				Type    string `json:"type"`
-				Contact struct {
-					ContactID int64 `json:"contactId"`
-				} `json:"contact"`
-			} `json:"chatInfo"`
-			ChatItem struct {
-				Content struct {
-					Type       string `json:"type"`
-					MsgContent struct {
-						Type string `json:"type"`
-						Text string `json:"text"`
-					} `json:"msgContent"`
-				} `json:"content"`
-			} `json:"chatItem"`
-		} `json:"chatItems"`
-	}
-
-	if err := json.Unmarshal(msg.Resp.Raw, &payload); err != nil {
+	var payload types.EventNewChatItems
+	if err := msg.Resp.Decode(&payload); err != nil {
 		return nil, fmt.Errorf("decode newChatItems payload: %w", err)
 	}
 
@@ -48,10 +27,13 @@ func ExtractDirectTextMessages(msg protocol.Message) ([]DirectTextMessage, error
 		if item.ChatInfo.Type != "direct" {
 			continue
 		}
+		if item.ChatInfo.Contact == nil {
+			continue
+		}
 		if item.ChatItem.Content.Type != "rcvMsgContent" {
 			continue
 		}
-		if item.ChatItem.Content.MsgContent.Type != "text" {
+		if item.ChatItem.Content.MsgContent == nil || item.ChatItem.Content.MsgContent.Type != "text" {
 			continue
 		}
 		out = append(out, DirectTextMessage{

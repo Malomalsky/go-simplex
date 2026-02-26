@@ -45,7 +45,7 @@ func (c *Client) GetActiveUser(ctx context.Context) (*types.User, error) {
 
 	switch types.ResponseType(msg.Resp.Type) {
 	case types.ResponseTypeActiveUser:
-		var resp types.ActiveUserResp
+		var resp types.ResponseActiveUser
 		if err := msg.Resp.Decode(&resp); err != nil {
 			return nil, err
 		}
@@ -65,7 +65,7 @@ func (c *Client) GetUserAddress(ctx context.Context, userID int64) (string, erro
 
 	switch types.ResponseType(msg.Resp.Type) {
 	case types.ResponseTypeUserContactLink:
-		var resp types.UserContactLinkResp
+		var resp types.ResponseUserContactLink
 		if err := msg.Resp.Decode(&resp); err != nil {
 			return "", err
 		}
@@ -85,7 +85,7 @@ func (c *Client) CreateUserAddress(ctx context.Context, userID int64) (string, e
 
 	switch types.ResponseType(msg.Resp.Type) {
 	case types.ResponseTypeUserContactLinkCreated:
-		var resp types.UserContactLinkCreatedResp
+		var resp types.ResponseUserContactLinkCreated
 		if err := msg.Resp.Decode(&resp); err != nil {
 			return "", err
 		}
@@ -129,6 +129,10 @@ func (c *Client) EnableAddressAutoAccept(ctx context.Context, userID int64) erro
 
 	switch types.ResponseType(msg.Resp.Type) {
 	case types.ResponseTypeUserContactLinkUpdated:
+		var resp types.ResponseUserContactLinkUpdated
+		if err := msg.Resp.Decode(&resp); err != nil {
+			return err
+		}
 		return nil
 	case types.ResponseTypeChatCmdError:
 		return &CommandError{ResponseType: msg.Resp.Type, Payload: append([]byte(nil), msg.Resp.Raw...)}

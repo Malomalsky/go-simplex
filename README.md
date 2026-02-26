@@ -95,3 +95,4 @@ and produces:
 
 - `sdk/command/generated_catalog.go`
 - `sdk/types/generated_tags.go`
+- `sdk/types/generated_records.go`

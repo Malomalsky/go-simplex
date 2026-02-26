@@ -1,5 +1,7 @@
 package types
 
+import "encoding/json"
+
 type Profile struct {
 	DisplayName string `json:"displayName,omitempty"`
 	FullName    string `json:"fullName,omitempty"`
@@ -26,50 +28,37 @@ type UserContactLink struct {
 	ConnLinkContact CreatedConnLink `json:"connLinkContact"`
 }
 
-type ActiveUserResp struct {
-	Type string `json:"type"`
-	User User   `json:"user"`
-}
-
-type UserContactLinkResp struct {
-	Type        string          `json:"type"`
-	User        User            `json:"user"`
-	ContactLink UserContactLink `json:"contactLink"`
-}
-
-type UserContactLinkCreatedResp struct {
-	Type            string          `json:"type"`
-	User            User            `json:"user"`
-	ConnLinkContact CreatedConnLink `json:"connLinkContact"`
-}
-
-type UserContactLinkUpdatedResp struct {
-	Type        string          `json:"type"`
-	User        User            `json:"user"`
-	ContactLink UserContactLink `json:"contactLink"`
-}
-
-type ChatCmdErrorResp struct {
-	Type      string    `json:"type"`
-	ChatError ChatError `json:"chatError"`
+type Contact struct {
+	ContactID int64   `json:"contactId"`
+	Profile   Profile `json:"profile"`
 }
 
 type ChatError struct {
-	Type       string      `json:"type"`
-	ErrorType  interface{} `json:"errorType,omitempty"`
-	StoreError interface{} `json:"storeError,omitempty"`
+	Type       string          `json:"type"`
+	ErrorType  json.RawMessage `json:"errorType,omitempty"`
+	StoreError json.RawMessage `json:"storeError,omitempty"`
 }
 
-type NewChatItemsResp struct {
-	Type      string      `json:"type"`
-	ChatItems []AChatItem `json:"chatItems"`
+type ChatInfo struct {
+	Type    string   `json:"type"`
+	Contact *Contact `json:"contact,omitempty"`
+}
+
+type MsgContent struct {
+	Type string `json:"type"`
+	Text string `json:"text,omitempty"`
+}
+
+type ChatContent struct {
+	Type       string      `json:"type"`
+	MsgContent *MsgContent `json:"msgContent,omitempty"`
 }
 
 type AChatItem struct {
-	ChatInfo interface{} `json:"chatInfo"`
-	ChatItem ChatItem    `json:"chatItem"`
+	ChatInfo ChatInfo `json:"chatInfo"`
+	ChatItem ChatItem `json:"chatItem"`
 }
 
 type ChatItem struct {
-	Content interface{} `json:"content"`
+	Content ChatContent `json:"content"`
 }
