@@ -11,6 +11,7 @@ import (
 )
 
 type Handler func(ctx context.Context, cli *client.Client, msg protocol.Message) error
+type DecodedHandler func(ctx context.Context, cli *client.Client, event any) error
 type ErrorHandler func(ctx context.Context, err error)
 
 type Runtime struct {
@@ -45,6 +46,32 @@ func (r *Runtime) On(eventType string, h Handler) {
 
 func (r *Runtime) OnEvent(eventType types.EventType, h Handler) {
 	r.On(string(eventType), h)
+}
+
+func (r *Runtime) OnDecoded(eventType types.EventType, h DecodedHandler) {
+	if h == nil {
+		return
+	}
+	r.OnEvent(eventType, func(ctx context.Context, cli *client.Client, msg protocol.Message) error {
+		decoded, err := types.DecodeEventByType(eventType, msg.Resp.Raw)
+		if err != nil {
+			return fmt.Errorf("decode %s: %w", eventType, err)
+		}
+		return h(ctx, cli, decoded)
+	})
+}
+
+func OnTyped[T any](r *Runtime, eventType types.EventType, h func(ctx context.Context, cli *client.Client, event T) error) {
+	if r == nil || h == nil {
+		return
+	}
+	r.OnDecoded(eventType, func(ctx context.Context, cli *client.Client, event any) error {
+		typed, ok := event.(T)
+		if !ok {
+			return fmt.Errorf("decoded event type mismatch for %s: got %T", eventType, event)
+		}
+		return h(ctx, cli, typed)
+	})
 }
 
 func (r *Runtime) OnAny(h Handler) {

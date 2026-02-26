@@ -22,6 +22,10 @@ func ExtractDirectTextMessages(msg protocol.Message) ([]DirectTextMessage, error
 		return nil, fmt.Errorf("decode newChatItems payload: %w", err)
 	}
 
+	return ExtractDirectTextMessagesFromNewChatItems(payload), nil
+}
+
+func ExtractDirectTextMessagesFromNewChatItems(payload types.EventNewChatItems) []DirectTextMessage {
 	out := make([]DirectTextMessage, 0, len(payload.ChatItems))
 	for _, item := range payload.ChatItems {
 		if item.ChatInfo.Type != "direct" {
@@ -41,5 +45,5 @@ func ExtractDirectTextMessages(msg protocol.Message) ([]DirectTextMessage, error
 			Text:      item.ChatItem.Content.MsgContent.Text,
 		})
 	}
-	return out, nil
+	return out
 }

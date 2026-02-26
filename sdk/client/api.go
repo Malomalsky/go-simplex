@@ -19,6 +19,13 @@ func (e *CommandError) Error() string {
 	return fmt.Sprintf("chat command error response: %s", e.ResponseType)
 }
 
+func commandErrorFromRaw(responseType string, raw []byte) *CommandError {
+	return &CommandError{
+		ResponseType: responseType,
+		Payload:      append([]byte(nil), raw...),
+	}
+}
+
 func (e *CommandError) IsStoreError(tag string) bool {
 	if tag == "" || len(e.Payload) == 0 {
 		return false
@@ -38,63 +45,45 @@ func (e *CommandError) IsStoreError(tag string) bool {
 }
 
 func (c *Client) GetActiveUser(ctx context.Context) (*types.User, error) {
-	msg, err := c.Send(ctx, command.ShowActiveUser{})
+	result, err := c.SendShowActiveUser(ctx, command.ShowActiveUser{})
 	if err != nil {
 		return nil, err
 	}
-
-	switch types.ResponseType(msg.Resp.Type) {
-	case types.ResponseTypeActiveUser:
-		var resp types.ResponseActiveUser
-		if err := msg.Resp.Decode(&resp); err != nil {
-			return nil, err
-		}
-		return &resp.User, nil
-	case types.ResponseTypeChatCmdError:
-		return nil, &CommandError{ResponseType: msg.Resp.Type, Payload: append([]byte(nil), msg.Resp.Raw...)}
-	default:
-		return nil, fmt.Errorf("unexpected response type: %s", msg.Resp.Type)
+	if result.ActiveUser != nil {
+		return &result.ActiveUser.User, nil
 	}
+	if result.ChatCmdError != nil {
+		return nil, commandErrorFromRaw(result.Message.Resp.Type, result.Message.Resp.Raw)
+	}
+	return nil, fmt.Errorf("missing response payload for %s", result.Message.Resp.Type)
 }
 
 func (c *Client) GetUserAddress(ctx context.Context, userID int64) (string, error) {
-	msg, err := c.Send(ctx, command.APIShowMyAddress{UserId: userID})
+	result, err := c.SendAPIShowMyAddress(ctx, command.APIShowMyAddress{UserId: userID})
 	if err != nil {
 		return "", err
 	}
-
-	switch types.ResponseType(msg.Resp.Type) {
-	case types.ResponseTypeUserContactLink:
-		var resp types.ResponseUserContactLink
-		if err := msg.Resp.Decode(&resp); err != nil {
-			return "", err
-		}
-		return resp.ContactLink.ConnLinkContact.PreferredLink(), nil
-	case types.ResponseTypeChatCmdError:
-		return "", &CommandError{ResponseType: msg.Resp.Type, Payload: append([]byte(nil), msg.Resp.Raw...)}
-	default:
-		return "", fmt.Errorf("unexpected response type: %s", msg.Resp.Type)
+	if result.UserContactLink != nil {
+		return result.UserContactLink.ContactLink.ConnLinkContact.PreferredLink(), nil
 	}
+	if result.ChatCmdError != nil {
+		return "", commandErrorFromRaw(result.Message.Resp.Type, result.Message.Resp.Raw)
+	}
+	return "", fmt.Errorf("missing response payload for %s", result.Message.Resp.Type)
 }
 
 func (c *Client) CreateUserAddress(ctx context.Context, userID int64) (string, error) {
-	msg, err := c.Send(ctx, command.APICreateMyAddress{UserId: userID})
+	result, err := c.SendAPICreateMyAddress(ctx, command.APICreateMyAddress{UserId: userID})
 	if err != nil {
 		return "", err
 	}
-
-	switch types.ResponseType(msg.Resp.Type) {
-	case types.ResponseTypeUserContactLinkCreated:
-		var resp types.ResponseUserContactLinkCreated
-		if err := msg.Resp.Decode(&resp); err != nil {
-			return "", err
-		}
-		return resp.ConnLinkContact.PreferredLink(), nil
-	case types.ResponseTypeChatCmdError:
-		return "", &CommandError{ResponseType: msg.Resp.Type, Payload: append([]byte(nil), msg.Resp.Raw...)}
-	default:
-		return "", fmt.Errorf("unexpected response type: %s", msg.Resp.Type)
+	if result.UserContactLinkCreated != nil {
+		return result.UserContactLinkCreated.ConnLinkContact.PreferredLink(), nil
 	}
+	if result.ChatCmdError != nil {
+		return "", commandErrorFromRaw(result.Message.Resp.Type, result.Message.Resp.Raw)
+	}
+	return "", fmt.Errorf("missing response payload for %s", result.Message.Resp.Type)
 }
 
 func (c *Client) EnsureUserAddress(ctx context.Context, userID int64) (string, error) {
@@ -119,26 +108,20 @@ func (c *Client) EnableAddressAutoAccept(ctx context.Context, userID int64) erro
 		},
 	}
 
-	msg, err := c.Send(ctx, command.APISetAddressSettings{
+	result, err := c.SendAPISetAddressSettings(ctx, command.APISetAddressSettings{
 		UserId:   userID,
 		Settings: settings,
 	})
 	if err != nil {
 		return err
 	}
-
-	switch types.ResponseType(msg.Resp.Type) {
-	case types.ResponseTypeUserContactLinkUpdated:
-		var resp types.ResponseUserContactLinkUpdated
-		if err := msg.Resp.Decode(&resp); err != nil {
-			return err
-		}
+	if result.UserContactLinkUpdated != nil {
 		return nil
-	case types.ResponseTypeChatCmdError:
-		return &CommandError{ResponseType: msg.Resp.Type, Payload: append([]byte(nil), msg.Resp.Raw...)}
-	default:
-		return fmt.Errorf("unexpected response type: %s", msg.Resp.Type)
 	}
+	if result.ChatCmdError != nil {
+		return commandErrorFromRaw(result.Message.Resp.Type, result.Message.Resp.Raw)
+	}
+	return fmt.Errorf("missing response payload for %s", result.Message.Resp.Type)
 }
 
 func (c *Client) SendTextMessage(ctx context.Context, sendRef string, text string) error {
@@ -152,7 +135,7 @@ func (c *Client) SendTextMessage(ctx context.Context, sendRef string, text strin
 		},
 	}
 
-	msg, err := c.Send(ctx, command.APISendMessages{
+	result, err := c.SendAPISendMessages(ctx, command.APISendMessages{
 		SendRef:          sendRef,
 		LiveMessage:      false,
 		ComposedMessages: payload,
@@ -160,15 +143,13 @@ func (c *Client) SendTextMessage(ctx context.Context, sendRef string, text strin
 	if err != nil {
 		return err
 	}
-
-	switch types.ResponseType(msg.Resp.Type) {
-	case types.ResponseTypeNewChatItems:
+	if result.NewChatItems != nil {
 		return nil
-	case types.ResponseTypeChatCmdError:
-		return &CommandError{ResponseType: msg.Resp.Type, Payload: append([]byte(nil), msg.Resp.Raw...)}
-	default:
-		return fmt.Errorf("unexpected response type: %s", msg.Resp.Type)
 	}
+	if result.ChatCmdError != nil {
+		return commandErrorFromRaw(result.Message.Resp.Type, result.Message.Resp.Raw)
+	}
+	return fmt.Errorf("missing response payload for %s", result.Message.Resp.Type)
 }
 
 func (c *Client) SendTextToContact(ctx context.Context, contactID int64, text string) error {

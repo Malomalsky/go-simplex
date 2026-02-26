@@ -164,3 +164,40 @@ func TestRuntimeOnError(t *testing.T) {
 		t.Fatalf("timeout waiting for runtime error")
 	}
 }
+
+func TestRuntimeOnTyped(t *testing.T) {
+	t.Parallel()
+
+	tr := newMockTransport()
+	cli, err := client.New(tr)
+	if err != nil {
+		t.Fatalf("new client: %v", err)
+	}
+	defer cli.Close(context.Background())
+
+	rt, err := NewRuntime(cli)
+	if err != nil {
+		t.Fatalf("new runtime: %v", err)
+	}
+
+	got := make(chan types.EventNewChatItems, 1)
+	OnTyped(rt, types.EventTypeNewChatItems, func(ctx context.Context, cli *client.Client, event types.EventNewChatItems) error {
+		got <- event
+		return nil
+	})
+
+	runCtx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go rt.Run(runCtx)
+
+	tr.readCh <- []byte(`{"resp":{"type":"newChatItems","user":{"userId":1,"profile":{"displayName":"bot"}},"chatItems":[]}}`)
+
+	select {
+	case evt := <-got:
+		if evt.Type != types.EventTypeNewChatItems {
+			t.Fatalf("unexpected event type: %s", evt.Type)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatalf("timeout waiting typed handler")
+	}
+}

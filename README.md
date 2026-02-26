@@ -60,8 +60,8 @@ if err != nil {
     panic(err)
 }
 
-rt.On("newChatItems", func(ctx context.Context, cli *client.Client, msg protocol.Message) error {
-    // handle event
+bot.OnTyped(rt, types.EventTypeNewChatItems, func(ctx context.Context, cli *client.Client, event types.EventNewChatItems) error {
+    // handle typed event
     return nil
 })
 
