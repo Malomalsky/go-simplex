@@ -17,3 +17,16 @@ Current stage: research and architecture planning.
 - generated contracts to prevent upstream drift
 - practical bot-developer ergonomics
 
+## Development
+
+Generate command catalog from upstream snapshot:
+
+```bash
+go run ./cmd/simplexgen
+```
+
+Run tests:
+
+```bash
+go test ./...
+```
