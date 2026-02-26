@@ -20,6 +20,7 @@ func main() {
 		recordsOut string
 		cmdTSPath  string
 		reqOut     string
+		sendersOut string
 	)
 
 	flag.StringVar(&inputPath, "input", "spec/upstream/COMMANDS.md", "path to COMMANDS.md")
@@ -31,15 +32,16 @@ func main() {
 	flag.StringVar(&recordsOut, "out-records", "sdk/types/generated_records.go", "generated event/response records file")
 	flag.StringVar(&cmdTSPath, "commands-ts", "spec/upstream/commands.ts", "path to upstream commands.ts")
 	flag.StringVar(&reqOut, "out-requests", "sdk/command/generated_requests.go", "generated command request structs file")
+	flag.StringVar(&sendersOut, "out-senders", "sdk/client/generated_senders.go", "generated typed client senders file")
 	flag.Parse()
 
-	if err := run(inputPath, outputPath, pkgName, eventsPath, respPath, tagsOut, recordsOut, cmdTSPath, reqOut); err != nil {
+	if err := run(inputPath, outputPath, pkgName, eventsPath, respPath, tagsOut, recordsOut, cmdTSPath, reqOut, sendersOut); err != nil {
 		fmt.Fprintf(os.Stderr, "simplexgen: %v\n", err)
 		os.Exit(1)
 	}
 }
 
-func run(inputPath, outputPath, pkgName, eventsPath, respPath, tagsOut, recordsOut, cmdTSPath, reqOut string) error {
+func run(inputPath, outputPath, pkgName, eventsPath, respPath, tagsOut, recordsOut, cmdTSPath, reqOut, sendersOut string) error {
 	in, err := os.Open(inputPath)
 	if err != nil {
 		return fmt.Errorf("open input: %w", err)
@@ -121,6 +123,17 @@ func run(inputPath, outputPath, pkgName, eventsPath, respPath, tagsOut, recordsO
 	}
 	if err := os.WriteFile(reqOut, reqCode, 0o644); err != nil {
 		return fmt.Errorf("write requests output file: %w", err)
+	}
+
+	sendersCode, err := spec.RenderClientSendersGo("client", tsCommands)
+	if err != nil {
+		return fmt.Errorf("render client senders: %w", err)
+	}
+	if err := os.MkdirAll(filepath.Dir(sendersOut), 0o755); err != nil {
+		return fmt.Errorf("create senders output directory: %w", err)
+	}
+	if err := os.WriteFile(sendersOut, sendersCode, 0o644); err != nil {
+		return fmt.Errorf("write senders output file: %w", err)
 	}
 	return nil
 }

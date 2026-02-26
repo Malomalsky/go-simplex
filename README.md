@@ -99,6 +99,7 @@ and produces:
 
 - `sdk/command/generated_catalog.go`
 - `sdk/command/generated_requests.go`
+- `sdk/client/generated_senders.go`
 - `sdk/types/generated_tags.go`
 - `sdk/types/generated_records.go`
 

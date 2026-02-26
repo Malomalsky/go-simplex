@@ -13,7 +13,13 @@ type TSCommand struct {
 	Fields       []TSField
 	ExprJS       string
 	Category     string
+	Responses    []TSCommandResponse
 	ResponseTags []string
+}
+
+type TSCommandResponse struct {
+	Name string
+	Tag  string
 }
 
 var (
@@ -36,7 +42,7 @@ func ParseTSCommands(r io.Reader, catalog CommandsDoc, responseTypes []TaggedTyp
 
 	ifaceMap := make(map[string][]TSField, 64)
 	exprMap := make(map[string]string, 64)
-	respMap := make(map[string][]string, 64)
+	respMap := make(map[string][]TSCommandResponse, 64)
 
 	for i := 0; i < len(lines); i++ {
 		line := lines[i]
@@ -71,7 +77,7 @@ func ParseTSCommands(r io.Reader, catalog CommandsDoc, responseTypes []TaggedTyp
 		if m := cmdNsStartRe.FindStringSubmatch(line); len(m) == 2 {
 			name := m[1]
 			found := false
-			var respTags []string
+			var respTypes []TSCommandResponse
 			for j := i + 1; j < len(lines); j++ {
 				next := strings.TrimSpace(lines[j])
 				if next == "}" {
@@ -84,7 +90,7 @@ func ParseTSCommands(r io.Reader, catalog CommandsDoc, responseTypes []TaggedTyp
 					if parseErr != nil {
 						return nil, fmt.Errorf("parse command namespace response %s: %w", name, parseErr)
 					}
-					respTags = types
+					respTypes = types
 				}
 
 				rm := cmdReturnRe.FindStringSubmatch(next)
@@ -96,10 +102,10 @@ func ParseTSCommands(r io.Reader, catalog CommandsDoc, responseTypes []TaggedTyp
 			if !found {
 				return nil, fmt.Errorf("command namespace %s has no return expression", name)
 			}
-			if len(respTags) == 0 {
+			if len(respTypes) == 0 {
 				return nil, fmt.Errorf("command namespace %s has no response type union", name)
 			}
-			respMap[name] = respTags
+			respMap[name] = respTypes
 		}
 	}
 
@@ -114,7 +120,7 @@ func ParseTSCommands(r io.Reader, catalog CommandsDoc, responseTypes []TaggedTyp
 		if !ok {
 			return nil, fmt.Errorf("command expression not found in commands.ts: %s", c.Name)
 		}
-		respTags, ok := respMap[c.Name]
+		respTypes, ok := respMap[c.Name]
 		if !ok {
 			return nil, fmt.Errorf("command response union not found in commands.ts: %s", c.Name)
 		}
@@ -137,16 +143,17 @@ func ParseTSCommands(r io.Reader, catalog CommandsDoc, responseTypes []TaggedTyp
 			Fields:       fields,
 			ExprJS:       expr,
 			Category:     category,
-			ResponseTags: append([]string(nil), respTags...),
+			Responses:    append([]TSCommandResponse(nil), respTypes...),
+			ResponseTags: extractResponseTags(respTypes),
 		})
 	}
 
 	return out, nil
 }
 
-func parseNamespaceResponseTypes(responseExpr string, responseTagByName map[string]string) ([]string, error) {
+func parseNamespaceResponseTypes(responseExpr string, responseTagByName map[string]string) ([]TSCommandResponse, error) {
 	parts := strings.Split(responseExpr, "|")
-	out := make([]string, 0, len(parts))
+	out := make([]TSCommandResponse, 0, len(parts))
 	for _, p := range parts {
 		part := strings.TrimSpace(strings.TrimSuffix(strings.TrimSpace(p), ";"))
 		if part == "" {
@@ -159,12 +166,23 @@ func parseNamespaceResponseTypes(responseExpr string, responseTagByName map[stri
 		if !ok {
 			return nil, fmt.Errorf("unknown response type %q", part)
 		}
-		out = append(out, tag)
+		out = append(out, TSCommandResponse{
+			Name: part,
+			Tag:  tag,
+		})
 	}
 	if len(out) == 0 {
 		return nil, fmt.Errorf("empty response type union")
 	}
 	return out, nil
+}
+
+func extractResponseTags(types []TSCommandResponse) []string {
+	out := make([]string, 0, len(types))
+	for _, rt := range types {
+		out = append(out, rt.Tag)
+	}
+	return out
 }
 
 func readCmdLines(r io.Reader) ([]string, error) {
