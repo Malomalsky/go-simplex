@@ -151,9 +151,15 @@ Client safety/stability options:
 
 - `client.WithRawCommandAllowPrefixes(...)`
 - `client.WithRawCommandValidator(...)`
+- `client.WithRawCommandMaxBytes(...)`
 - `client.WithEventOverflowPolicy(client.OverflowPolicyDropNewest)`
 - `client.WithErrorOverflowPolicy(client.OverflowPolicyDropNewest)`
 - `client.WithDropHandler(...)`
+
+WebSocket transport hardening options:
+
+- `ws.WithRequireWSS(true)` for remote deployments
+- `ws.WithTLSMinVersion(...)`
 
 Runnable example:
 

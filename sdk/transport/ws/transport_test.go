@@ -85,3 +85,38 @@ func TestTransportReadRejectsBinary(t *testing.T) {
 		t.Fatalf("expected error for binary frame")
 	}
 }
+
+func TestDialRejectsUnsupportedScheme(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
+	_, err := Dial(ctx, "http://localhost:5225")
+	if err == nil {
+		t.Fatalf("expected unsupported scheme error")
+	}
+}
+
+func TestDialRequireWSSRejectsWS(t *testing.T) {
+	t.Parallel()
+
+	upgrader := websocket.Upgrader{}
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		conn, err := upgrader.Upgrade(w, r, nil)
+		if err != nil {
+			return
+		}
+		defer conn.Close()
+	}))
+	defer srv.Close()
+
+	wsURL := "ws" + strings.TrimPrefix(srv.URL, "http")
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	_, err := Dial(ctx, wsURL, WithRequireWSS(true))
+	if err == nil {
+		t.Fatalf("expected require-wss rejection")
+	}
+}

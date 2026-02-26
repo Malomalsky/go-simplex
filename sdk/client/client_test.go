@@ -383,6 +383,76 @@ func TestSendRawAllowPrefixes(t *testing.T) {
 	}
 }
 
+func TestSendRawRejectsControlCharacters(t *testing.T) {
+	t.Parallel()
+
+	transport := newMockTransport()
+	c, err := New(transport)
+	if err != nil {
+		t.Fatalf("new client: %v", err)
+	}
+	t.Cleanup(func() {
+		_ = c.Close(context.Background())
+	})
+
+	_, err = c.SendRaw(context.Background(), "/user\n/_delete @1 entity")
+	if err == nil {
+		t.Fatalf("expected control character rejection")
+	}
+	if !strings.Contains(err.Error(), "control character") {
+		t.Fatalf("unexpected control char error: %v", err)
+	}
+
+	select {
+	case <-transport.writeCh:
+		t.Fatalf("invalid command should not be written")
+	default:
+	}
+}
+
+func TestSendRawRejectsTooLargeCommand(t *testing.T) {
+	t.Parallel()
+
+	transport := newMockTransport()
+	c, err := New(transport, WithRawCommandMaxBytes(4))
+	if err != nil {
+		t.Fatalf("new client: %v", err)
+	}
+	t.Cleanup(func() {
+		_ = c.Close(context.Background())
+	})
+
+	_, err = c.SendRaw(context.Background(), "/user")
+	if err == nil {
+		t.Fatalf("expected max size rejection")
+	}
+	if !strings.Contains(err.Error(), "exceeds max size") {
+		t.Fatalf("unexpected max size error: %v", err)
+	}
+}
+
+func TestSendRawRejectsInvalidUTF8(t *testing.T) {
+	t.Parallel()
+
+	transport := newMockTransport()
+	c, err := New(transport)
+	if err != nil {
+		t.Fatalf("new client: %v", err)
+	}
+	t.Cleanup(func() {
+		_ = c.Close(context.Background())
+	})
+
+	invalid := string([]byte{'/', 0xff})
+	_, err = c.SendRaw(context.Background(), invalid)
+	if err == nil {
+		t.Fatalf("expected invalid UTF-8 rejection")
+	}
+	if !strings.Contains(err.Error(), "invalid UTF-8") {
+		t.Fatalf("unexpected UTF-8 error: %v", err)
+	}
+}
+
 func TestEventOverflowDropNewest(t *testing.T) {
 	t.Parallel()
 

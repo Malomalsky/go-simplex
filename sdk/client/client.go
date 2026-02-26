@@ -8,6 +8,7 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
+	"unicode/utf8"
 
 	"github.com/Malomalsky/go-simplex/sdk/command"
 	"github.com/Malomalsky/go-simplex/sdk/protocol"
@@ -45,6 +46,8 @@ type Config struct {
 
 	EventOverflow OverflowPolicy
 	ErrorOverflow OverflowPolicy
+
+	RawCommandMaxBytes int
 
 	RawCommandValidator RawCommandValidator
 	OnDrop              DropHandler
@@ -96,6 +99,14 @@ func WithRawCommandValidator(validator RawCommandValidator) Option {
 	}
 }
 
+func WithRawCommandMaxBytes(max int) Option {
+	return func(c *Config) {
+		if max >= 0 {
+			c.RawCommandMaxBytes = max
+		}
+	}
+}
+
 func WithRawCommandAllowPrefixes(prefixes ...string) Option {
 	allowed := make([]string, 0, len(prefixes))
 	for _, p := range prefixes {
@@ -121,10 +132,11 @@ func WithDropHandler(handler DropHandler) Option {
 
 func defaultConfig() Config {
 	return Config{
-		EventBuffer:   128,
-		ErrorBuffer:   16,
-		EventOverflow: OverflowPolicyBlock,
-		ErrorOverflow: OverflowPolicyBlock,
+		EventBuffer:        128,
+		ErrorBuffer:        16,
+		EventOverflow:      OverflowPolicyBlock,
+		ErrorOverflow:      OverflowPolicyBlock,
+		RawCommandMaxBytes: 1 << 20, // 1 MiB upper bound to avoid unbounded command payloads.
 	}
 }
 
@@ -144,6 +156,7 @@ type Client struct {
 	onDrop        DropHandler
 
 	rawCommandValidator RawCommandValidator
+	rawCommandMaxBytes  int
 
 	droppedEvents uint64
 	droppedErrors uint64
@@ -177,6 +190,7 @@ func New(transport Transport, opts ...Option) (*Client, error) {
 		eventOverflow:       cfg.EventOverflow,
 		errorOverflow:       cfg.ErrorOverflow,
 		onDrop:              cfg.OnDrop,
+		rawCommandMaxBytes:  cfg.RawCommandMaxBytes,
 		rawCommandValidator: cfg.RawCommandValidator,
 		ctx:                 ctx,
 		cancel:              cancel,
@@ -200,8 +214,8 @@ func (c *Client) Done() <-chan struct{} {
 }
 
 func (c *Client) SendRaw(ctx context.Context, cmd string) (protocol.Message, error) {
-	if cmd == "" {
-		return protocol.Message{}, fmt.Errorf("cmd is required")
+	if err := validateRawCommand(cmd, c.rawCommandMaxBytes); err != nil {
+		return protocol.Message{}, err
 	}
 	if c.rawCommandValidator != nil {
 		if err := c.rawCommandValidator(cmd); err != nil {
@@ -448,4 +462,22 @@ func safeCommandString(req command.Request) (cmd string, err error) {
 	}()
 	cmd = req.CommandString()
 	return cmd, err
+}
+
+func validateRawCommand(cmd string, maxBytes int) error {
+	if cmd == "" {
+		return fmt.Errorf("cmd is required")
+	}
+	if maxBytes > 0 && len(cmd) > maxBytes {
+		return fmt.Errorf("cmd exceeds max size: %d > %d bytes", len(cmd), maxBytes)
+	}
+	if !utf8.ValidString(cmd) {
+		return fmt.Errorf("cmd contains invalid UTF-8")
+	}
+	for _, r := range cmd {
+		if r < 0x20 || r == 0x7f {
+			return fmt.Errorf("cmd contains control character %q", r)
+		}
+	}
+	return nil
 }

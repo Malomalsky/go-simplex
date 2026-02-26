@@ -2,8 +2,10 @@ package ws
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
 	"net/http"
+	urlpkg "net/url"
 	"sync"
 	"time"
 
@@ -13,6 +15,8 @@ import (
 type Config struct {
 	HandshakeTimeout time.Duration
 	ReadLimit        int64
+	RequireWSS       bool
+	TLSMinVersion    uint16
 }
 
 type Option func(*Config)
@@ -33,10 +37,25 @@ func WithReadLimit(limit int64) Option {
 	}
 }
 
+func WithRequireWSS(require bool) Option {
+	return func(c *Config) {
+		c.RequireWSS = require
+	}
+}
+
+func WithTLSMinVersion(version uint16) Option {
+	return func(c *Config) {
+		if version > 0 {
+			c.TLSMinVersion = version
+		}
+	}
+}
+
 func defaultConfig() Config {
 	return Config{
 		HandshakeTimeout: 10 * time.Second,
 		ReadLimit:        16 << 20,
+		TLSMinVersion:    tls.VersionTLS12,
 	}
 }
 
@@ -48,21 +67,36 @@ type Transport struct {
 	closeErr  error
 }
 
-func Dial(ctx context.Context, url string, opts ...Option) (*Transport, error) {
-	if url == "" {
+func Dial(ctx context.Context, endpoint string, opts ...Option) (*Transport, error) {
+	if endpoint == "" {
 		return nil, fmt.Errorf("url is required")
+	}
+	parsedURL, err := urlpkg.Parse(endpoint)
+	if err != nil {
+		return nil, fmt.Errorf("parse websocket url: %w", err)
+	}
+	switch parsedURL.Scheme {
+	case "ws", "wss":
+	default:
+		return nil, fmt.Errorf("unsupported websocket scheme: %s", parsedURL.Scheme)
 	}
 
 	cfg := defaultConfig()
 	for _, opt := range opts {
 		opt(&cfg)
 	}
+	if cfg.RequireWSS && parsedURL.Scheme != "wss" {
+		return nil, fmt.Errorf("wss is required, got scheme %q", parsedURL.Scheme)
+	}
 
 	dialer := websocket.Dialer{
 		Proxy:            http.ProxyFromEnvironment,
 		HandshakeTimeout: cfg.HandshakeTimeout,
+		TLSClientConfig: &tls.Config{
+			MinVersion: cfg.TLSMinVersion,
+		},
 	}
-	conn, resp, err := dialer.DialContext(ctx, url, nil)
+	conn, resp, err := dialer.DialContext(ctx, endpoint, nil)
 	if err != nil {
 		if resp != nil {
 			return nil, fmt.Errorf("dial websocket: %w (status %s)", err, resp.Status)
