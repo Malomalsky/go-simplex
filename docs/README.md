@@ -6,6 +6,7 @@
 - Security and data safety: `security.md`
 - Scaffold templates: `basic`, `moderation` via `cmd/simplexbot-init`
 - Runnable examples index: `../examples/README.md`
+- Live contract tests: `../integration/README.md`
 - Research notes:
   - `research/upstream-api.md`
   - `research/upstream-sdk.md`

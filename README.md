@@ -151,12 +151,24 @@ Refresh upstream snapshots and regenerate:
 ./scripts/update-upstream.sh
 ```
 
+Run compatibility guard (generator drift + snapshot count parity):
+
+```bash
+./scripts/check-compat.sh
+```
+
 Run checks:
 
 ```bash
 go test ./...
 go test -race ./...
 go vet ./...
+```
+
+Run live contract tests against a real SimpleX websocket API:
+
+```bash
+SIMPLEX_WS_URL=ws://localhost:5225 go test -tags=integration ./integration/... -v
 ```
 
 Optional vulnerability scan:

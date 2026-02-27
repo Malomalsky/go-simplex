@@ -1,0 +1,54 @@
+name: Contract Tests (Live SimpleX)
+
+on:
+  workflow_dispatch:
+    inputs:
+      ws_url:
+        description: "SimpleX websocket URL (optional; falls back to SIMPLEX_WS_URL secret)"
+        required: false
+        type: string
+  schedule:
+    - cron: "17 4 * * 1"
+
+permissions:
+  contents: read
+
+jobs:
+  contract:
+    name: Live Contract Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Resolve websocket URL
+        id: resolve
+        env:
+          INPUT_WS_URL: ${{ inputs.ws_url }}
+          SECRET_WS_URL: ${{ secrets.SIMPLEX_WS_URL }}
+        run: |
+          set -euo pipefail
+          ws_url="${INPUT_WS_URL}"
+          if [ -z "$ws_url" ]; then
+            ws_url="${SECRET_WS_URL}"
+          fi
+
+          if [ -z "$ws_url" ]; then
+            echo "No websocket URL configured. Set workflow input ws_url or repository secret SIMPLEX_WS_URL."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "skip=false" >> "$GITHUB_OUTPUT"
+          echo "ws_url=$ws_url" >> "$GITHUB_OUTPUT"
+
+      - name: Run live contract tests
+        if: steps.resolve.outputs.skip != 'true'
+        env:
+          SIMPLEX_WS_URL: ${{ steps.resolve.outputs.ws_url }}
+        run: go test -tags=integration ./integration/... -v
