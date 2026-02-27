@@ -175,6 +175,7 @@ Client safety/stability options:
 - `client.WithRawCommandValidator(...)`
 - `client.WithRawCommandMaxBytes(...)`
 - `client.WithStrictResponses(false)` for forward-compatible unknown `resp.type`
+- high-level methods validate `sendRef/chatRef` format (`@id`, `#id`, `*id`)
 - `client.WithEventOverflowPolicy(client.OverflowPolicyDropNewest)`
 - `client.WithErrorOverflowPolicy(client.OverflowPolicyDropNewest)`
 - `client.WithDropHandler(...)`

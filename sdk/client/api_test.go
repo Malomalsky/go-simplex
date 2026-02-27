@@ -1358,6 +1358,31 @@ func TestSendTextMessageWithOptions(t *testing.T) {
 	}
 }
 
+func TestSendTextMessageInvalidSendRef(t *testing.T) {
+	t.Parallel()
+
+	transport := newMockTransport()
+	c, err := New(transport)
+	if err != nil {
+		t.Fatalf("new client: %v", err)
+	}
+	defer c.Close(context.Background())
+
+	err = c.SendTextMessage(context.Background(), "invalid", "hello")
+	if err == nil {
+		t.Fatalf("expected invalid sendRef error")
+	}
+	if !strings.Contains(err.Error(), "invalid sendRef") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	select {
+	case <-transport.writeCh:
+		t.Fatalf("invalid sendRef should not write command")
+	default:
+	}
+}
+
 func TestSendTextToContactWithOptions(t *testing.T) {
 	t.Parallel()
 
@@ -1559,6 +1584,27 @@ func TestUpdateTextMessage(t *testing.T) {
 	}
 }
 
+func TestUpdateChatItemInvalidChatRef(t *testing.T) {
+	t.Parallel()
+
+	transport := newMockTransport()
+	c, err := New(transport)
+	if err != nil {
+		t.Fatalf("new client: %v", err)
+	}
+	defer c.Close(context.Background())
+
+	_, err = c.UpdateChatItem(context.Background(), "bad", 7, map[string]any{
+		"msgContent": map[string]any{"type": "text", "text": "x"},
+	}, UpdateChatItemOptions{})
+	if err == nil {
+		t.Fatalf("expected invalid chatRef error")
+	}
+	if !strings.Contains(err.Error(), "invalid chatRef") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
 func TestUpdateTextMessageInContact(t *testing.T) {
 	t.Parallel()
 
@@ -1668,6 +1714,25 @@ func TestDeleteChatItemsEmptyIDs(t *testing.T) {
 	_, err = c.DeleteChatItems(context.Background(), "@42", nil, CIDeleteModeBroadcast)
 	if err == nil {
 		t.Fatalf("expected error for empty chatItemIDs")
+	}
+}
+
+func TestDeleteChatItemsInvalidChatRef(t *testing.T) {
+	t.Parallel()
+
+	transport := newMockTransport()
+	c, err := New(transport)
+	if err != nil {
+		t.Fatalf("new client: %v", err)
+	}
+	defer c.Close(context.Background())
+
+	_, err = c.DeleteChatItems(context.Background(), "bad-ref", []int64{1}, CIDeleteModeBroadcast)
+	if err == nil {
+		t.Fatalf("expected invalid chatRef error")
+	}
+	if !strings.Contains(err.Error(), "invalid chatRef") {
+		t.Fatalf("unexpected error: %v", err)
 	}
 }
 
@@ -1821,6 +1886,21 @@ func TestSetChatItemReactionNilPayload(t *testing.T) {
 
 	if _, err := c.SetChatItemReaction(context.Background(), "@42", 1, true, nil); err == nil {
 		t.Fatalf("expected nil reaction error")
+	}
+}
+
+func TestSetChatItemReactionInvalidChatRef(t *testing.T) {
+	t.Parallel()
+
+	transport := newMockTransport()
+	c, err := New(transport)
+	if err != nil {
+		t.Fatalf("new client: %v", err)
+	}
+	defer c.Close(context.Background())
+
+	if _, err := c.SetChatItemReaction(context.Background(), "broken", 1, true, map[string]any{"kind": "like"}); err == nil {
+		t.Fatalf("expected invalid chatRef error")
 	}
 }
 
@@ -2019,6 +2099,21 @@ func TestDeleteChatEmptyMode(t *testing.T) {
 
 	if _, err := c.DeleteChat(context.Background(), "@42", ""); err == nil {
 		t.Fatalf("expected empty mode error")
+	}
+}
+
+func TestDeleteChatInvalidChatRef(t *testing.T) {
+	t.Parallel()
+
+	transport := newMockTransport()
+	c, err := New(transport)
+	if err != nil {
+		t.Fatalf("new client: %v", err)
+	}
+	defer c.Close(context.Background())
+
+	if _, err := c.DeleteChat(context.Background(), "nope", ChatDeleteMode("entity")); err == nil {
+		t.Fatalf("expected invalid chatRef error")
 	}
 }
 

@@ -753,6 +753,10 @@ func (c *Client) SendTextMessage(ctx context.Context, sendRef string, text strin
 }
 
 func (c *Client) SendTextMessageWithOptions(ctx context.Context, sendRef string, text string, options SendTextOptions) error {
+	if err := command.ValidateRef(sendRef); err != nil {
+		return fmt.Errorf("invalid sendRef: %w", err)
+	}
+
 	payload := []map[string]any{
 		{
 			"msgContent": map[string]any{
@@ -798,6 +802,10 @@ func (c *Client) SendTextToGroupWithOptions(ctx context.Context, groupID int64, 
 }
 
 func (c *Client) UpdateChatItem(ctx context.Context, chatRef string, chatItemID int64, updatedMessage map[string]any, options UpdateChatItemOptions) (*UpdateChatItemSummary, error) {
+	if err := command.ValidateRef(chatRef); err != nil {
+		return nil, fmt.Errorf("invalid chatRef: %w", err)
+	}
+
 	result, err := c.SendAPIUpdateChatItem(ctx, command.APIUpdateChatItem{
 		ChatRef:        chatRef,
 		ChatItemId:     chatItemID,
@@ -845,6 +853,9 @@ func (c *Client) UpdateTextMessageInGroup(ctx context.Context, groupID int64, ch
 }
 
 func (c *Client) DeleteChatItems(ctx context.Context, chatRef string, chatItemIDs []int64, deleteMode CIDeleteMode) (*types.ResponseChatItemsDeleted, error) {
+	if err := command.ValidateRef(chatRef); err != nil {
+		return nil, fmt.Errorf("invalid chatRef: %w", err)
+	}
 	if len(chatItemIDs) == 0 {
 		return nil, fmt.Errorf("chatItemIDs is empty")
 	}
@@ -900,6 +911,9 @@ func (c *Client) ModerateDeleteGroupChatItems(ctx context.Context, groupID int64
 }
 
 func (c *Client) SetChatItemReaction(ctx context.Context, chatRef string, chatItemID int64, add bool, reaction map[string]any) (*types.ResponseChatItemReaction, error) {
+	if err := command.ValidateRef(chatRef); err != nil {
+		return nil, fmt.Errorf("invalid chatRef: %w", err)
+	}
 	if reaction == nil {
 		return nil, fmt.Errorf("reaction is nil")
 	}
@@ -931,6 +945,9 @@ func (c *Client) RemoveChatItemReaction(ctx context.Context, chatRef string, cha
 }
 
 func (c *Client) DeleteChat(ctx context.Context, chatRef string, mode ChatDeleteMode) (*DeleteChatSummary, error) {
+	if err := command.ValidateRef(chatRef); err != nil {
+		return nil, fmt.Errorf("invalid chatRef: %w", err)
+	}
 	if mode == "" {
 		return nil, fmt.Errorf("chat delete mode is empty")
 	}
