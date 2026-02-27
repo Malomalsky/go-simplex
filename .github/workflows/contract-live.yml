@@ -7,6 +7,26 @@ on:
         description: "SimpleX websocket URL (optional; falls back to SIMPLEX_WS_URL secret)"
         required: false
         type: string
+      contact_id:
+        description: "Optional contact ID for extended contact flow tests"
+        required: false
+        type: string
+      contact_chat_item_id:
+        description: "Optional contact chat item ID for update/delete/reaction tests"
+        required: false
+        type: string
+      group_id:
+        description: "Optional group ID for extended group flow tests"
+        required: false
+        type: string
+      group_chat_item_id:
+        description: "Optional group chat item ID for update/delete/reaction tests"
+        required: false
+        type: string
+      file_id:
+        description: "Optional file ID for receive/cancel tests"
+        required: false
+        type: string
   schedule:
     - cron: "17 4 * * 1"
 
@@ -51,4 +71,9 @@ jobs:
         if: steps.resolve.outputs.skip != 'true'
         env:
           SIMPLEX_WS_URL: ${{ steps.resolve.outputs.ws_url }}
+          SIMPLEX_TEST_CONTACT_ID: ${{ inputs.contact_id || secrets.SIMPLEX_TEST_CONTACT_ID }}
+          SIMPLEX_TEST_CONTACT_CHAT_ITEM_ID: ${{ inputs.contact_chat_item_id || secrets.SIMPLEX_TEST_CONTACT_CHAT_ITEM_ID }}
+          SIMPLEX_TEST_GROUP_ID: ${{ inputs.group_id || secrets.SIMPLEX_TEST_GROUP_ID }}
+          SIMPLEX_TEST_GROUP_CHAT_ITEM_ID: ${{ inputs.group_chat_item_id || secrets.SIMPLEX_TEST_GROUP_CHAT_ITEM_ID }}
+          SIMPLEX_TEST_FILE_ID: ${{ inputs.file_id || secrets.SIMPLEX_TEST_FILE_ID }}
         run: go test -tags=integration ./integration/... -v
