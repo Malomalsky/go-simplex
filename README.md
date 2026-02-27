@@ -1,77 +1,61 @@
 # go-simplex
 
-Go SDK for building bots on top of the official SimpleX Bot API.
+Go SDK for building SimpleX bots with an idiomatic, typed API and a practical bot runtime.
 
-Current stage: implementation in progress.
+## Scope
 
-## Documents
+- full generated coverage of the official SimpleX bot command API snapshot (`spec/upstream/commands.ts`)
+- typed event/response tags and records from upstream snapshots
+- high-level client helpers for common bot workflows
+- bot runtime with middleware, direct-message extraction, command router, and reconnect supervisor
+- security-focused defaults and explicit hardening options
 
-- API research: `docs/research/upstream-api.md`
-- TypeScript SDK research: `docs/research/upstream-sdk.md`
-- Implementation roadmap: `docs/plan/go-sdk-roadmap.md`
+## Official SimpleX docs
 
-## Principles
+- Bot overview: https://github.com/simplex-chat/simplex-chat/tree/stable/bots
+- Bot API commands: https://github.com/simplex-chat/simplex-chat/blob/stable/bots/api/COMMANDS.md
+- Bot API events: https://github.com/simplex-chat/simplex-chat/blob/stable/bots/api/EVENTS.md
+- Bot API types: https://github.com/simplex-chat/simplex-chat/blob/stable/bots/api/TYPES.md
+- Official TypeScript SDK: https://github.com/simplex-chat/simplex-chat/blob/stable/packages/simplex-chat-client/typescript/README.md
 
-- full parity with documented SimpleX bot API
-- idiomatic Go API
-- generated contracts to prevent upstream drift
-- practical bot-developer ergonomics
+## Quick start
 
-## Development
-
-Generate command catalog from upstream snapshot:
-
-```bash
-go run ./cmd/simplexgen
-```
-
-Run tests:
-
-```bash
-go test ./...
-```
-
-Smoke check against running SimpleX CLI websocket:
-
-```bash
-go run ./cmd/simplex-smoke --ws ws://localhost:5225
-```
-
-## Quickstart (current API)
-
-Run SimpleX CLI with websocket API:
+### 1. Start SimpleX CLI websocket API
 
 ```bash
 simplex-chat -p 5225
 ```
 
-Create client and bot runtime:
+### 2. Generate a new bot project
+
+```bash
+go run ./cmd/simplexbot-init -module github.com/you/my-simplex-bot -out ./my-simplex-bot
+cd ./my-simplex-bot
+go mod tidy
+go run .
+```
+
+### 3. Or run the included example
+
+```bash
+go run ./examples/echo
+```
+
+## Minimal bot example
 
 ```go
 ctx := context.Background()
 router := bot.NewTextRouter()
 _ = router.EnablePerContactRateLimit(20, time.Minute)
-_ = router.On("ping", func(ctx context.Context, cli *client.Client, cmd bot.TextCommand) error {
-    return cmd.Message.Reply(ctx, cli, "pong")
-})
-_ = router.OnWithDescription("echo", "echo text back", func(ctx context.Context, cli *client.Client, cmd bot.TextCommand) error {
-    argv, _ := cmd.Argv() // supports quotes: /echo "hello world"
-    if len(argv) == 0 {
-        return cmd.Reply(ctx, cli, "usage: /echo <text>")
-    }
-    return cmd.Reply(ctx, cli, strings.Join(argv, " "))
-})
-router.OnRateLimited(func(ctx context.Context, cli *client.Client, cmd bot.TextCommand) error {
-    return cmd.Reply(ctx, cli, "rate limit exceeded, try later")
+_ = router.OnWithDescription("ping", "health check", func(ctx context.Context, cli *client.Client, cmd bot.TextCommand) error {
+    return cmd.Reply(ctx, cli, "pong")
 })
 
 err := bot.RunWebSocketWithReconnect(
     ctx,
     "ws://localhost:5225",
-    nil, // ws options
-    []client.Option{
-        client.WithStrictResponses(false), // tolerate new upstream resp.type
-    },
+    nil,
+    []client.Option{client.WithStrictResponses(false)},
     func(cli *client.Client) (bot.Runner, error) {
         rt, err := bot.NewRuntime(cli)
         if err != nil {
@@ -86,135 +70,84 @@ if err != nil && !errors.Is(err, context.Canceled) {
 }
 ```
 
-Bot runtime helpers:
+## API layers
 
-- `bot.OnTyped`
-- `bot.OnDirectText`
-- `bot.NewTextRouter`, `bot.OnDirectCommands`
-- `cmd.Argv()`, `cmd.Reply(...)`
-- `router.OnWithDescription(...)`, `router.HelpLines()`
-- `router.EnablePerContactRateLimit(...)`, `router.OnRateLimited(...)`
-- `bot.ExtractDirectTextMessages`
-- `bot.RunWithReconnect`, `bot.RunWebSocketWithReconnect`
-- `rt.Use` middleware chain
-- handler panic recovery with `OnError` reporting
+- generated command layer: `sdk/command/generated_requests.go`
+- generated typed sender layer: `sdk/client/generated_senders.go`
+- high-level convenience client: `sdk/client/api.go`
+- runtime/router layer: `sdk/bot/*`
 
-High-level helper methods currently available on `*client.Client`:
+## Security and resilience features
 
-- `BootstrapBot`
-- `GetActiveUser`
-- `GetUserAddress`
-- `CreateUserAddress`
-- `DeleteUserAddress`
-- `SetProfileAddress`
-- `SetAddressSettings`
-- `EnsureUserAddress`
-- `ListContacts`
-- `ListGroupsTyped`
-- `ListGroups`
-- `CreateContactInvitation`
-- `ConnectPlan`
-- `ConnectWithPreparedLink`
-- `ConnectWithLink`
-- `AcceptContactRequest`
-- `RejectContactRequest`
-- `CreateUser`
-- `ListUsersTyped`
-- `ListUsers`
-- `SetActiveUser`
-- `DeleteUser`
-- `UpdateProfile`
-- `SetContactPreferences`
-- `AddGroupMember`
-- `JoinGroup`
-- `AcceptGroupMember`
-- `SetGroupMembersRole`
-- `BlockGroupMembersForAll`
-- `RemoveGroupMembers`
-- `LeaveGroup`
-- `ListGroupMembers`
-- `ListGroupMembersTyped`
-- `CreateGroupTyped`
-- `CreateGroup`
-- `UpdateGroupProfileTyped`
-- `UpdateGroupProfile`
-- `CreateGroupLinkTyped`
-- `CreateGroupLink`
-- `SetGroupLinkMemberRoleTyped`
-- `SetGroupLinkMemberRole`
-- `DeleteGroupLink`
-- `GetGroupLinkTyped`
-- `GetGroupLink`
-- `EnableAddressAutoAccept`
-- `SendTextMessage`
-- `SendTextMessageWithOptions`
-- `SendTextToContact`
-- `SendTextToContactWithOptions`
-- `SendTextToGroup`
-- `SendTextToGroupWithOptions`
-- `UpdateChatItem`
-- `UpdateTextMessage`
-- `UpdateTextMessageInContact`
-- `UpdateTextMessageInGroup`
-- `DeleteChatItems`
-- `DeleteChatItemsInContact`
-- `DeleteChatItemsInGroup`
-- `ModerateDeleteGroupChatItems`
-- `DeleteChat`
-- `DeleteContactChat`
-- `DeleteGroupChat`
-- `SetChatItemReaction`
-- `AddChatItemReaction`
-- `RemoveChatItemReaction`
-- `ReceiveFile`
-- `CancelFile`
+- websocket hardening:
+  - `ws.WithRequireWSS(true)`
+  - `ws.WithTLSMinVersion(...)`
+  - `ws.WithReadLimit(...)`
+- raw command controls:
+  - `client.WithRawCommandAllowPrefixes(...)`
+  - `client.WithRawCommandValidator(...)`
+  - `client.WithRawCommandMaxBytes(...)`
+- forward-compatible unknown response handling:
+  - `client.WithStrictResponses(false)`
+- bounded channel overflow policies:
+  - `client.WithEventOverflowPolicy(...)`
+  - `client.WithErrorOverflowPolicy(...)`
+  - `client.WithDropHandler(...)`
+- ref validation in high-level helpers (`sendRef`/`chatRef` must be `@id`, `#id`, `*id`)
+- per-contact command rate limiting in router:
+  - `router.EnablePerContactRateLimit(...)`
+  - `router.OnRateLimited(...)`
 
-Client safety/stability options:
+More details: `docs/security.md`.
 
-- `client.WithRawCommandAllowPrefixes(...)`
-- `client.WithRawCommandValidator(...)`
-- `client.WithRawCommandMaxBytes(...)`
-- `client.WithStrictResponses(false)` for forward-compatible unknown `resp.type`
-- high-level methods validate `sendRef/chatRef` format (`@id`, `#id`, `*id`)
-- `client.WithEventOverflowPolicy(client.OverflowPolicyDropNewest)`
-- `client.WithErrorOverflowPolicy(client.OverflowPolicyDropNewest)`
-- `client.WithDropHandler(...)`
+## Documentation
 
-WebSocket transport hardening options:
+- Getting started: `docs/getting-started.md`
+- Bot development guide: `docs/bot-development.md`
+- Compatibility and coverage: `docs/compatibility.md`
+- Security guide: `docs/security.md`
+- Upstream API research notes: `docs/research/upstream-api.md`
+- Upstream TS SDK research notes: `docs/research/upstream-sdk.md`
+- Implementation roadmap: `docs/plan/go-sdk-roadmap.md`
 
-- `ws.WithRequireWSS(true)` for remote deployments
-- `ws.WithTLSMinVersion(...)`
+## Compatibility snapshot
 
-Runnable example:
+Current generated coverage against tracked upstream snapshots:
+
+- bot API command interfaces in `spec/upstream/commands.ts`: `42`
+- generated request structs in `sdk/command/generated_requests.go`: `42`
+- generated typed sender methods in `sdk/client/generated_senders.go`: `42`
+- upstream event tags in `spec/upstream/events.ts`: `45`
+- generated `types.EventType` constants: `45`
+- upstream response tags in `spec/upstream/responses.ts`: `45`
+- generated `types.ResponseType` constants: `45`
+
+Details and verification commands are in `docs/compatibility.md`.
+
+## Development
+
+Regenerate from local upstream snapshots:
 
 ```bash
-go run ./examples/echo
+go run ./cmd/simplexgen
 ```
 
-The generator currently reads:
-
-- `spec/upstream/COMMANDS.md`
-- `spec/upstream/commands.ts`
-- `spec/upstream/events.ts`
-- `spec/upstream/responses.ts`
-
-and produces:
-
-- `sdk/command/generated_catalog.go`
-- `sdk/command/generated_requests.go`
-- `sdk/client/generated_senders.go`
-- `sdk/types/generated_tags.go`
-- `sdk/types/generated_records.go`
-- `sdk/types/generated_types.go`
-
-To refresh snapshots from upstream and regenerate in one step:
+Refresh upstream snapshots and regenerate:
 
 ```bash
 ./scripts/update-upstream.sh
 ```
 
-Optional branch/ref:
+Run checks:
 
 ```bash
-./scripts/update-upstream.sh stable
+go test ./...
+go test -race ./...
+go vet ./...
+```
+
+Optional vulnerability scan:
+
+```bash
+go run golang.org/x/vuln/cmd/govulncheck@latest ./...
 ```
