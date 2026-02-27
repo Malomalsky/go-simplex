@@ -54,6 +54,12 @@ Live contract tests use build tag `integration`.
 SIMPLEX_WS_URL=ws://localhost:5225 go test -tags=integration ./integration/... -v
 ```
 
+For local reproducible runs, use:
+
+```bash
+./scripts/integration-local.sh
+```
+
 Additional fixture variables are documented in `integration/README.md`.
 
 ## Pull requests

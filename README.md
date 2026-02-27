@@ -173,6 +173,12 @@ Run live contract tests against a real SimpleX websocket API:
 SIMPLEX_WS_URL=ws://localhost:5225 go test -tags=integration ./integration/... -v
 ```
 
+Local harness (auto-start `simplex-chat`, run integration tests, cleanup):
+
+```bash
+./scripts/integration-local.sh
+```
+
 Optional vulnerability scan:
 
 ```bash
