@@ -4,6 +4,8 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+## [v0.2.2] - 2026-02-27
+
 ### Added
 
 - release workflow (`.github/workflows/release.yml`) for tag+GitHub Release from merged PR state
@@ -72,7 +74,8 @@ All notable changes to this project are documented in this file.
   - rate limiting and safety validations
   - scaffold command with `basic` and `moderation` templates
 
+[v0.2.2]: https://github.com/Malomalsky/go-simplex/compare/v0.2.1...v0.2.2
 [v0.2.1]: https://github.com/Malomalsky/go-simplex/compare/v0.2.0...v0.2.1
 [v0.2.0]: https://github.com/Malomalsky/go-simplex/compare/v0.1.0...v0.2.0
 [v0.1.0]: https://github.com/Malomalsky/go-simplex/releases/tag/v0.1.0
-[Unreleased]: https://github.com/Malomalsky/go-simplex/compare/v0.2.1...HEAD
+[Unreleased]: https://github.com/Malomalsky/go-simplex/compare/v0.2.2...HEAD
