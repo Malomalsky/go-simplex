@@ -16,6 +16,18 @@ simplex-chat -p 5225
 SIMPLEX_WS_URL=ws://localhost:5225 go test -tags=integration ./integration/... -v
 ```
 
+Or use local harness (starts `simplex-chat`, waits for websocket, runs tests, stops process):
+
+```bash
+./scripts/integration-local.sh
+```
+
+Use existing websocket instead of starting local process:
+
+```bash
+SIMPLEX_WS_URL=ws://localhost:5225 ./scripts/integration-local.sh
+```
+
 ## Optional fixture env vars for extended flows
 
 Set these to enable additional contract tests:
