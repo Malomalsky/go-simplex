@@ -115,6 +115,7 @@ Router/runtime:
 
 ```bash
 go run ./cmd/simplex-smoke --ws ws://localhost:5225
+go run ./examples/echo-bot
 go test ./...
 ```
 

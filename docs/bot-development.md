@@ -146,5 +146,9 @@ err := bot.RunWebSocketWithReconnect(
 
 ## Local runnable examples
 
-- `go run ./examples/echo`
+- `go run ./examples/echo-bot`
+- `go run ./examples/faq-bot`
+- `go run ./examples/welcome-bot`
 - `go run ./examples/moderation`
+
+Quick scenario checklist is in `examples/README.md`.

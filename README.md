@@ -38,10 +38,12 @@ go mod tidy
 go run .
 ```
 
-### 3. Or run the included example
+### 3. Run a concrete example bot
 
 ```bash
-go run ./examples/echo
+go run ./examples/echo-bot
+go run ./examples/faq-bot
+go run ./examples/welcome-bot
 go run ./examples/moderation
 ```
 
@@ -49,6 +51,8 @@ Available scaffold templates:
 
 - `basic`: `help`, `ping`, `echo`
 - `moderation`: deny-list moderation (`addword`, `delword`, `words`) for direct messages
+
+Examples index with test scenarios: `examples/README.md`.
 
 ## Minimal bot example
 
