@@ -119,6 +119,8 @@ More details: `docs/security.md`.
 - Bot development guide: `docs/bot-development.md`
 - Compatibility and coverage: `docs/compatibility.md`
 - Security guide: `docs/security.md`
+- Vulnerability reporting: `SECURITY.md`
+- Contribution guide: `CONTRIBUTING.md`
 - Upstream API research notes: `docs/research/upstream-api.md`
 - Upstream TS SDK research notes: `docs/research/upstream-sdk.md`
 - Implementation roadmap: `docs/plan/go-sdk-roadmap.md`

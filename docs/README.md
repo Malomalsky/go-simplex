@@ -7,6 +7,8 @@
 - Scaffold templates: `basic`, `moderation` via `cmd/simplexbot-init`
 - Runnable examples index: `../examples/README.md`
 - Live contract tests: `../integration/README.md`
+- Repo contribution guide: `../CONTRIBUTING.md`
+- Vulnerability reporting policy: `../SECURITY.md`
 - Research notes:
   - `research/upstream-api.md`
   - `research/upstream-sdk.md`
