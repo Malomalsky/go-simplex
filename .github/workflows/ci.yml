@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   unit:
-    name: Unit, Race, Vet, Vuln
+    name: Unit, Race, Vet
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -29,6 +29,18 @@ jobs:
 
       - name: Vet
         run: go vet ./...
+
+  vulncheck:
+    name: Vulncheck (Stable Go)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go (stable)
+        uses: actions/setup-go@v5
+        with:
+          go-version: stable
 
       - name: Vulncheck
         run: go run golang.org/x/vuln/cmd/govulncheck@latest ./...
