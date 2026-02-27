@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"unicode"
 
 	"github.com/Malomalsky/go-simplex/sdk/client"
 )
@@ -15,15 +16,37 @@ type TextCommand struct {
 	Message DirectTextMessage
 }
 
+func (c TextCommand) Reply(ctx context.Context, cli *client.Client, text string) error {
+	return c.Message.Reply(ctx, cli, text)
+}
+
+func (c TextCommand) Argv() ([]string, error) {
+	return parseCommandArgs(c.Args)
+}
+
+func (c TextCommand) Arg(index int) (string, bool) {
+	argv, err := c.Argv()
+	if err != nil || index < 0 || index >= len(argv) {
+		return "", false
+	}
+	return argv[index], true
+}
+
 type TextCommandHandler func(ctx context.Context, cli *client.Client, cmd TextCommand) error
 type TextRouterOption func(*TextRouter)
+
+type textRoute struct {
+	handler     TextCommandHandler
+	description string
+}
 
 type TextRouter struct {
 	prefix          string
 	requirePrefix   bool
 	caseInsensitive bool
+	maxTextBytes    int
 
-	commands map[string]TextCommandHandler
+	commands map[string]textRoute
 	unknown  TextCommandHandler
 }
 
@@ -31,7 +54,8 @@ func NewTextRouter(opts ...TextRouterOption) *TextRouter {
 	r := &TextRouter{
 		prefix:        "/",
 		requirePrefix: true,
-		commands:      make(map[string]TextCommandHandler),
+		maxTextBytes:  4096,
+		commands:      make(map[string]textRoute),
 	}
 	for _, opt := range opts {
 		opt(r)
@@ -57,7 +81,19 @@ func WithCommandCaseInsensitive(caseInsensitive bool) TextRouterOption {
 	}
 }
 
+func WithCommandMaxTextBytes(max int) TextRouterOption {
+	return func(r *TextRouter) {
+		if max >= 0 {
+			r.maxTextBytes = max
+		}
+	}
+}
+
 func (r *TextRouter) On(command string, h TextCommandHandler) error {
+	return r.OnWithDescription(command, "", h)
+}
+
+func (r *TextRouter) OnWithDescription(command string, description string, h TextCommandHandler) error {
 	if h == nil {
 		return fmt.Errorf("handler is nil")
 	}
@@ -68,7 +104,10 @@ func (r *TextRouter) On(command string, h TextCommandHandler) error {
 	if _, exists := r.commands[name]; exists {
 		return fmt.Errorf("command already registered: %s", name)
 	}
-	r.commands[name] = h
+	r.commands[name] = textRoute{
+		handler:     h,
+		description: strings.TrimSpace(description),
+	}
 	return nil
 }
 
@@ -85,6 +124,27 @@ func (r *TextRouter) Commands() []string {
 	return out
 }
 
+func (r *TextRouter) HelpLines() []string {
+	names := r.Commands()
+	if len(names) == 0 {
+		return nil
+	}
+	lines := make([]string, 0, len(names))
+	for _, name := range names {
+		route := r.commands[name]
+		label := name
+		if r.prefix != "" {
+			label = r.prefix + name
+		}
+		if route.description == "" {
+			lines = append(lines, label)
+			continue
+		}
+		lines = append(lines, label+" - "+route.description)
+	}
+	return lines
+}
+
 func (r *TextRouter) Handle(ctx context.Context, cli *client.Client, msg DirectTextMessage) error {
 	name, args, ok := r.parse(msg.Text)
 	if !ok {
@@ -95,8 +155,8 @@ func (r *TextRouter) Handle(ctx context.Context, cli *client.Client, msg DirectT
 		Args:    args,
 		Message: msg,
 	}
-	if h, exists := r.commands[name]; exists {
-		return h(ctx, cli, cmd)
+	if route, exists := r.commands[name]; exists {
+		return route.handler(ctx, cli, cmd)
 	}
 	if r.unknown != nil {
 		return r.unknown(ctx, cli, cmd)
@@ -138,6 +198,9 @@ func (r *TextRouter) parse(text string) (name, args string, ok bool) {
 	if text == "" {
 		return "", "", false
 	}
+	if r.maxTextBytes > 0 && len(text) > r.maxTextBytes {
+		return "", "", false
+	}
 
 	cmdToken := text
 	if i := strings.IndexAny(text, " \t\r\n"); i >= 0 {
@@ -158,4 +221,72 @@ func (r *TextRouter) parse(text string) (name, args string, ok bool) {
 		cmdToken = strings.ToLower(cmdToken)
 	}
 	return cmdToken, args, true
+}
+
+func parseCommandArgs(s string) ([]string, error) {
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return nil, nil
+	}
+
+	var (
+		args         []string
+		buf          strings.Builder
+		quote        rune
+		escape       bool
+		tokenStarted bool
+	)
+
+	flush := func() {
+		if !tokenStarted {
+			return
+		}
+		args = append(args, buf.String())
+		buf.Reset()
+		tokenStarted = false
+	}
+
+	for _, r := range s {
+		if escape {
+			tokenStarted = true
+			buf.WriteRune(r)
+			escape = false
+			continue
+		}
+		if r == '\\' {
+			tokenStarted = true
+			escape = true
+			continue
+		}
+		if quote != 0 {
+			if r == quote {
+				quote = 0
+				continue
+			}
+			tokenStarted = true
+			buf.WriteRune(r)
+			continue
+		}
+		if r == '"' || r == '\'' {
+			tokenStarted = true
+			quote = r
+			continue
+		}
+		if unicode.IsSpace(r) {
+			flush()
+			continue
+		}
+		tokenStarted = true
+		buf.WriteRune(r)
+	}
+
+	if escape {
+		return nil, fmt.Errorf("unterminated escape sequence")
+	}
+	if quote != 0 {
+		return nil, fmt.Errorf("unterminated quoted argument")
+	}
+
+	flush()
+	return args, nil
 }

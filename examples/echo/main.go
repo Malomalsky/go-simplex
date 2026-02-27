@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"strings"
 	"time"
 
 	"github.com/Malomalsky/go-simplex/sdk/bot"
@@ -22,12 +23,25 @@ func main() {
 	}); err != nil {
 		log.Fatalf("register ping command: %v", err)
 	}
-	if err := router.On("echo", func(ctx context.Context, cli *client.Client, cmd bot.TextCommand) error {
-		reply := cmd.Args
-		if reply == "" {
-			reply = cmd.Message.Text
+	if err := router.OnWithDescription("help", "show command list", func(ctx context.Context, cli *client.Client, cmd bot.TextCommand) error {
+		lines := router.HelpLines()
+		if len(lines) == 0 {
+			return cmd.Reply(ctx, cli, "no commands registered")
 		}
-		if err := cmd.Message.Reply(ctx, cli, "echo: "+reply); err != nil {
+		return cmd.Reply(ctx, cli, strings.Join(lines, "\n"))
+	}); err != nil {
+		log.Fatalf("register help command: %v", err)
+	}
+	if err := router.OnWithDescription("echo", "echo text back", func(ctx context.Context, cli *client.Client, cmd bot.TextCommand) error {
+		argv, err := cmd.Argv()
+		if err != nil {
+			return cmd.Reply(ctx, cli, "invalid args: "+err.Error())
+		}
+		reply := strings.Join(argv, " ")
+		if reply == "" {
+			return cmd.Reply(ctx, cli, "usage: /echo <text>")
+		}
+		if err := cmd.Reply(ctx, cli, "echo: "+reply); err != nil {
 			return err
 		}
 		log.Printf("replied to contact %d", cmd.Message.ContactID)
@@ -35,6 +49,9 @@ func main() {
 	}); err != nil {
 		log.Fatalf("register echo command: %v", err)
 	}
+	router.OnUnknown(func(ctx context.Context, cli *client.Client, cmd bot.TextCommand) error {
+		return cmd.Reply(ctx, cli, "unknown command. try /help")
+	})
 
 	err := bot.RunWebSocketWithReconnect(
 		ctx,

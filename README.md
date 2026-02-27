@@ -53,6 +53,13 @@ router := bot.NewTextRouter()
 _ = router.On("ping", func(ctx context.Context, cli *client.Client, cmd bot.TextCommand) error {
     return cmd.Message.Reply(ctx, cli, "pong")
 })
+_ = router.OnWithDescription("echo", "echo text back", func(ctx context.Context, cli *client.Client, cmd bot.TextCommand) error {
+    argv, _ := cmd.Argv() // supports quotes: /echo "hello world"
+    if len(argv) == 0 {
+        return cmd.Reply(ctx, cli, "usage: /echo <text>")
+    }
+    return cmd.Reply(ctx, cli, strings.Join(argv, " "))
+})
 
 err := bot.RunWebSocketWithReconnect(
     ctx,
@@ -80,6 +87,8 @@ Bot runtime helpers:
 - `bot.OnTyped`
 - `bot.OnDirectText`
 - `bot.NewTextRouter`, `bot.OnDirectCommands`
+- `cmd.Argv()`, `cmd.Reply(...)`
+- `router.OnWithDescription(...)`, `router.HelpLines()`
 - `bot.ExtractDirectTextMessages`
 - `bot.RunWithReconnect`, `bot.RunWebSocketWithReconnect`
 - `rt.Use` middleware chain

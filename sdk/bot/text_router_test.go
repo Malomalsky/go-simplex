@@ -44,6 +44,74 @@ func TestTextRouterHandleKnownCommand(t *testing.T) {
 	}
 }
 
+func TestTextCommandArgv(t *testing.T) {
+	t.Parallel()
+
+	cmd := TextCommand{
+		Name: "echo",
+		Args: `one "two words" 'three words' four\ five`,
+	}
+	argv, err := cmd.Argv()
+	if err != nil {
+		t.Fatalf("parse argv: %v", err)
+	}
+	if len(argv) != 4 {
+		t.Fatalf("unexpected argv size: %d (%#v)", len(argv), argv)
+	}
+	if argv[0] != "one" || argv[1] != "two words" || argv[2] != "three words" || argv[3] != "four five" {
+		t.Fatalf("unexpected argv: %#v", argv)
+	}
+
+	if got, ok := cmd.Arg(1); !ok || got != "two words" {
+		t.Fatalf("unexpected arg(1): %q %v", got, ok)
+	}
+	if _, ok := cmd.Arg(8); ok {
+		t.Fatalf("expected missing arg for out-of-range index")
+	}
+}
+
+func TestTextCommandArgvKeepsEmptyQuotedArg(t *testing.T) {
+	t.Parallel()
+
+	cmd := TextCommand{
+		Name: "echo",
+		Args: `"" "a"`,
+	}
+	argv, err := cmd.Argv()
+	if err != nil {
+		t.Fatalf("parse argv: %v", err)
+	}
+	if len(argv) != 2 {
+		t.Fatalf("unexpected argv size: %d (%#v)", len(argv), argv)
+	}
+	if argv[0] != "" || argv[1] != "a" {
+		t.Fatalf("unexpected argv values: %#v", argv)
+	}
+}
+
+func TestTextCommandArgvErrors(t *testing.T) {
+	t.Parallel()
+
+	cmd := TextCommand{Name: "broken", Args: `"unterminated`}
+	if _, err := cmd.Argv(); err == nil {
+		t.Fatalf("expected argv parsing error")
+	}
+}
+
+func TestTextCommandReply(t *testing.T) {
+	t.Parallel()
+
+	cmd := TextCommand{
+		Name: "echo",
+		Message: DirectTextMessage{
+			ContactID: 1,
+		},
+	}
+	if err := cmd.Reply(context.Background(), nil, "x"); err == nil {
+		t.Fatalf("expected nil client error")
+	}
+}
+
 func TestTextRouterUnknownCommand(t *testing.T) {
 	t.Parallel()
 
@@ -66,6 +134,33 @@ func TestTextRouterUnknownCommand(t *testing.T) {
 		}
 	case <-time.After(2 * time.Second):
 		t.Fatalf("timeout waiting unknown command handler")
+	}
+}
+
+func TestTextRouterOnWithDescriptionAndHelpLines(t *testing.T) {
+	t.Parallel()
+
+	router := NewTextRouter()
+	if err := router.OnWithDescription("help", "show available commands", func(context.Context, *client.Client, TextCommand) error {
+		return nil
+	}); err != nil {
+		t.Fatalf("register help command: %v", err)
+	}
+	if err := router.OnWithDescription("ping", "check bot liveness", func(context.Context, *client.Client, TextCommand) error {
+		return nil
+	}); err != nil {
+		t.Fatalf("register ping command: %v", err)
+	}
+
+	lines := router.HelpLines()
+	if len(lines) != 2 {
+		t.Fatalf("unexpected help line count: %d", len(lines))
+	}
+	if lines[0] != "/help - show available commands" {
+		t.Fatalf("unexpected first help line: %q", lines[0])
+	}
+	if lines[1] != "/ping - check bot liveness" {
+		t.Fatalf("unexpected second help line: %q", lines[1])
 	}
 }
 
@@ -112,6 +207,26 @@ func TestTextRouterRequirePrefix(t *testing.T) {
 	}
 	if called {
 		t.Fatalf("expected message without prefix to be ignored")
+	}
+}
+
+func TestTextRouterMaxTextBytes(t *testing.T) {
+	t.Parallel()
+
+	router := NewTextRouter(WithCommandMaxTextBytes(5))
+	called := false
+	if err := router.On("ping", func(ctx context.Context, cli *client.Client, cmd TextCommand) error {
+		called = true
+		return nil
+	}); err != nil {
+		t.Fatalf("register command: %v", err)
+	}
+
+	if err := router.Handle(context.Background(), nil, DirectTextMessage{Text: "/ping long"}); err != nil {
+		t.Fatalf("handle message: %v", err)
+	}
+	if called {
+		t.Fatalf("expected command over max bytes to be ignored")
 	}
 }
 
