@@ -28,6 +28,7 @@ From this repository:
 ```bash
 go run ./cmd/simplexbot-init \
   -module github.com/you/my-simplex-bot \
+  -template basic \
   -out ./my-simplex-bot \
   -ws ws://localhost:5225
 ```
@@ -35,6 +36,7 @@ go run ./cmd/simplexbot-init \
 Flags:
 
 - `-module` (required): Go module path for generated bot project
+- `-template`: scaffold template (`basic` or `moderation`)
 - `-out`: output directory (`./simplex-bot` by default)
 - `-ws`: websocket endpoint injected into generated `main.go`
 - `-name`: optional display name for generated README
@@ -56,6 +58,15 @@ The scaffold includes:
 - `/echo <text>` command with quoted args support
 - reconnect supervisor
 - per-contact rate limiting
+
+To start with built-in content moderation workflow:
+
+```bash
+go run ./cmd/simplexbot-init \
+  -module github.com/you/my-moderation-bot \
+  -template moderation \
+  -out ./my-moderation-bot
+```
 
 ## 4. Manual setup (without scaffold)
 

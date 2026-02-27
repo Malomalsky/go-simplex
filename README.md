@@ -29,7 +29,10 @@ simplex-chat -p 5225
 ### 2. Generate a new bot project
 
 ```bash
-go run ./cmd/simplexbot-init -module github.com/you/my-simplex-bot -out ./my-simplex-bot
+go run ./cmd/simplexbot-init \
+  -module github.com/you/my-simplex-bot \
+  -template basic \
+  -out ./my-simplex-bot
 cd ./my-simplex-bot
 go mod tidy
 go run .
@@ -39,7 +42,13 @@ go run .
 
 ```bash
 go run ./examples/echo
+go run ./examples/moderation
 ```
+
+Available scaffold templates:
+
+- `basic`: `help`, `ping`, `echo`
+- `moderation`: deny-list moderation (`addword`, `delword`, `words`) for direct messages
 
 ## Minimal bot example
 

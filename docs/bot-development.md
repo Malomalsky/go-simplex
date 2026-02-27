@@ -143,3 +143,8 @@ err := bot.RunWebSocketWithReconnect(
 - Command semantics: https://github.com/simplex-chat/simplex-chat/blob/stable/bots/api/COMMANDS.md
 - Event payloads: https://github.com/simplex-chat/simplex-chat/blob/stable/bots/api/EVENTS.md
 - Type definitions: https://github.com/simplex-chat/simplex-chat/blob/stable/bots/api/TYPES.md
+
+## Local runnable examples
+
+- `go run ./examples/echo`
+- `go run ./examples/moderation`

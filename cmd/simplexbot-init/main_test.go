@@ -24,12 +24,13 @@ func TestDefaultNameFromModule(t *testing.T) {
 	}
 }
 
-func TestBuildProjectFiles(t *testing.T) {
+func TestBuildProjectFiles_Basic(t *testing.T) {
 	files, err := buildProjectFiles(projectConfig{
 		Module:    "github.com/acme/my-bot",
 		Name:      "My Bot",
 		WSURL:     "wss://bot.example/ws",
 		SDKModule: "github.com/Malomalsky/go-simplex",
+		Template:  projectTemplateBasic,
 	})
 	if err != nil {
 		t.Fatalf("buildProjectFiles returned error: %v", err)
@@ -38,8 +39,34 @@ func TestBuildProjectFiles(t *testing.T) {
 	mustContain(t, files["go.mod"], "module github.com/acme/my-bot")
 	mustContain(t, files["main.go"], "github.com/Malomalsky/go-simplex/sdk/bot")
 	mustContain(t, files["main.go"], "wss://bot.example/ws")
+	mustContain(t, files["main.go"], "/echo <text>")
 	mustContain(t, files["README.md"], "Bot API commands")
 	mustContain(t, files[".gitignore"], ".codex/")
+}
+
+func TestBuildProjectFiles_Moderation(t *testing.T) {
+	files, err := buildProjectFiles(projectConfig{
+		Module:    "github.com/acme/mod-bot",
+		Name:      "Mod Bot",
+		WSURL:     "ws://localhost:5225",
+		SDKModule: "github.com/Malomalsky/go-simplex",
+		Template:  projectTemplateModeration,
+	})
+	if err != nil {
+		t.Fatalf("buildProjectFiles returned error: %v", err)
+	}
+
+	mustContain(t, files["main.go"], "type denyList struct")
+	mustContain(t, files["main.go"], "/addword <word>")
+	mustContain(t, files["README.md"], "moderation template")
+	mustContain(t, files["README.md"], "`/words`")
+}
+
+func TestBuildProjectFiles_InvalidTemplate(t *testing.T) {
+	_, err := buildProjectFiles(projectConfig{Template: "unknown"})
+	if err == nil {
+		t.Fatalf("expected error for invalid template")
+	}
 }
 
 func TestWriteProject_NoForceDoesNotOverwrite(t *testing.T) {

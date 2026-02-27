@@ -12,11 +12,17 @@ import (
 	"text/template"
 )
 
+const (
+	projectTemplateBasic      = "basic"
+	projectTemplateModeration = "moderation"
+)
+
 type projectConfig struct {
 	Module    string
 	Name      string
 	WSURL     string
 	SDKModule string
+	Template  string
 }
 
 type initConfig struct {
@@ -44,6 +50,7 @@ func parseFlags() (initConfig, error) {
 		outDir    string
 		wsURL     string
 		sdkModule string
+		template  string
 		force     bool
 	)
 
@@ -52,6 +59,7 @@ func parseFlags() (initConfig, error) {
 	flag.StringVar(&outDir, "out", "./simplex-bot", "output directory")
 	flag.StringVar(&wsURL, "ws", "ws://localhost:5225", "SimpleX websocket URL")
 	flag.StringVar(&sdkModule, "sdk-module", "github.com/Malomalsky/go-simplex", "go-simplex module import path")
+	flag.StringVar(&template, "template", projectTemplateBasic, "project template: basic|moderation")
 	flag.BoolVar(&force, "force", false, "overwrite existing files")
 	flag.Parse()
 
@@ -87,10 +95,17 @@ func parseFlags() (initConfig, error) {
 			Name:      name,
 			WSURL:     wsURL,
 			SDKModule: strings.TrimSpace(sdkModule),
+			Template:  strings.TrimSpace(template),
 		},
 	}
 	if cfg.Project.SDKModule == "" {
 		return initConfig{}, fmt.Errorf("-sdk-module is required")
+	}
+	if cfg.Project.Template == "" {
+		cfg.Project.Template = projectTemplateBasic
+	}
+	if cfg.Project.Template != projectTemplateBasic && cfg.Project.Template != projectTemplateModeration {
+		return initConfig{}, fmt.Errorf("unsupported template: %q (expected: %s, %s)", cfg.Project.Template, projectTemplateBasic, projectTemplateModeration)
 	}
 	return cfg, nil
 }
@@ -127,17 +142,16 @@ func defaultNameFromModule(module string) string {
 }
 
 func buildProjectFiles(project projectConfig) (map[string]string, error) {
+	files, err := filesForTemplate(project.Template)
+	if err != nil {
+		return nil, err
+	}
+
 	data := map[string]any{
 		"Module":    project.Module,
 		"Name":      project.Name,
 		"WSURL":     project.WSURL,
 		"SDKModule": project.SDKModule,
-	}
-	files := map[string]string{
-		"go.mod":     goModTemplate,
-		"main.go":    mainTemplate,
-		"README.md":  readmeTemplate,
-		".gitignore": gitignoreTemplate,
 	}
 
 	rendered := make(map[string]string, len(files))
@@ -149,6 +163,26 @@ func buildProjectFiles(project projectConfig) (map[string]string, error) {
 		rendered[path] = content
 	}
 	return rendered, nil
+}
+
+func filesForTemplate(template string) (map[string]string, error) {
+	base := map[string]string{
+		"go.mod":     goModTemplate,
+		".gitignore": gitignoreTemplate,
+	}
+
+	switch template {
+	case projectTemplateBasic:
+		base["main.go"] = mainTemplateBasic
+		base["README.md"] = readmeTemplateBasic
+		return base, nil
+	case projectTemplateModeration:
+		base["main.go"] = mainTemplateModeration
+		base["README.md"] = readmeTemplateModeration
+		return base, nil
+	default:
+		return nil, fmt.Errorf("unsupported template: %q", template)
+	}
 }
 
 func renderTemplate(name, src string, data map[string]any) (string, error) {
@@ -196,6 +230,7 @@ func writeProject(outDir string, files map[string]string, force bool) error {
 
 func printSummary(outDir string, project projectConfig) {
 	fmt.Printf("Initialized %s in %s\n\n", project.Name, outDir)
+	fmt.Printf("Template: %s\n\n", project.Template)
 	fmt.Println("Next steps:")
 	fmt.Printf("  cd %s\n", outDir)
 	fmt.Println("  go mod tidy")
@@ -207,7 +242,7 @@ const goModTemplate = `module {{.Module}}
 go 1.23
 `
 
-const mainTemplate = `package main
+const mainTemplateBasic = `package main
 
 import (
 	"context"
@@ -309,7 +344,197 @@ func main() {
 }
 `
 
-const readmeTemplate = `# {{.Name}}
+const mainTemplateModeration = `package main
+
+import (
+	"context"
+	"errors"
+	"log"
+	"os"
+	"os/signal"
+	"sort"
+	"strings"
+	"sync"
+	"syscall"
+	"time"
+
+	"{{.SDKModule}}/sdk/bot"
+	"{{.SDKModule}}/sdk/client"
+	"{{.SDKModule}}/sdk/transport/ws"
+)
+
+type denyList struct {
+	mu    sync.RWMutex
+	words map[string]struct{}
+}
+
+func newDenyList(initial []string) *denyList {
+	d := &denyList{words: make(map[string]struct{}, len(initial))}
+	for _, w := range initial {
+		d.Add(w)
+	}
+	return d
+}
+
+func (d *denyList) Add(word string) {
+	word = normalizeWord(word)
+	if word == "" {
+		return
+	}
+	d.mu.Lock()
+	d.words[word] = struct{}{}
+	d.mu.Unlock()
+}
+
+func (d *denyList) Remove(word string) bool {
+	word = normalizeWord(word)
+	if word == "" {
+		return false
+	}
+	d.mu.Lock()
+	_, exists := d.words[word]
+	if exists {
+		delete(d.words, word)
+	}
+	d.mu.Unlock()
+	return exists
+}
+
+func (d *denyList) List() []string {
+	d.mu.RLock()
+	out := make([]string, 0, len(d.words))
+	for w := range d.words {
+		out = append(out, w)
+	}
+	d.mu.RUnlock()
+	sort.Strings(out)
+	return out
+}
+
+func (d *denyList) Match(text string) (string, bool) {
+	normalized := strings.ToLower(text)
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+	for w := range d.words {
+		if strings.Contains(normalized, w) {
+			return w, true
+		}
+	}
+	return "", false
+}
+
+func normalizeWord(word string) string {
+	return strings.ToLower(strings.TrimSpace(word))
+}
+
+func main() {
+	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer cancel()
+
+	list := newDenyList([]string{"spam", "scam"})
+
+	router := bot.NewTextRouter()
+	if err := router.EnablePerContactRateLimit(20, time.Minute); err != nil {
+		log.Fatalf("enable rate limit: %v", err)
+	}
+
+	if err := router.OnWithDescription("help", "show available commands", func(ctx context.Context, cli *client.Client, cmd bot.TextCommand) error {
+		return cmd.Reply(ctx, cli, strings.Join(router.HelpLines(), "\n"))
+	}); err != nil {
+		log.Fatalf("register help command: %v", err)
+	}
+
+	if err := router.OnWithDescription("addword", "add word to deny-list", func(ctx context.Context, cli *client.Client, cmd bot.TextCommand) error {
+		word, ok := cmd.Arg(0)
+		if !ok {
+			return cmd.Reply(ctx, cli, "usage: /addword <word>")
+		}
+		list.Add(word)
+		return cmd.Reply(ctx, cli, "added: "+normalizeWord(word))
+	}); err != nil {
+		log.Fatalf("register addword command: %v", err)
+	}
+
+	if err := router.OnWithDescription("delword", "remove word from deny-list", func(ctx context.Context, cli *client.Client, cmd bot.TextCommand) error {
+		word, ok := cmd.Arg(0)
+		if !ok {
+			return cmd.Reply(ctx, cli, "usage: /delword <word>")
+		}
+		if !list.Remove(word) {
+			return cmd.Reply(ctx, cli, "not found: "+normalizeWord(word))
+		}
+		return cmd.Reply(ctx, cli, "removed: "+normalizeWord(word))
+	}); err != nil {
+		log.Fatalf("register delword command: %v", err)
+	}
+
+	if err := router.OnWithDescription("words", "show deny-list", func(ctx context.Context, cli *client.Client, cmd bot.TextCommand) error {
+		words := list.List()
+		if len(words) == 0 {
+			return cmd.Reply(ctx, cli, "deny-list is empty")
+		}
+		return cmd.Reply(ctx, cli, "deny-list: "+strings.Join(words, ", "))
+	}); err != nil {
+		log.Fatalf("register words command: %v", err)
+	}
+
+	router.OnUnknown(func(ctx context.Context, cli *client.Client, cmd bot.TextCommand) error {
+		return cmd.Reply(ctx, cli, "unknown command, try /help")
+	})
+	
+	router.OnRateLimited(func(ctx context.Context, cli *client.Client, cmd bot.TextCommand) error {
+		return cmd.Reply(ctx, cli, "rate limit exceeded, try again later")
+	})
+
+	err := bot.RunWebSocketWithReconnect(
+		ctx,
+		{{quote .WSURL}},
+		[]ws.Option{
+			// For remote deployment, add: ws.WithRequireWSS(true),
+			ws.WithReadLimit(16 << 20),
+		},
+		[]client.Option{
+			client.WithStrictResponses(false),
+		},
+		func(cli *client.Client) (bot.Runner, error) {
+			boot, err := cli.BootstrapBot(ctx)
+			if err != nil {
+				return nil, err
+			}
+			log.Printf("bot address: %s", boot.Address)
+
+			rt, err := bot.NewRuntime(cli)
+			if err != nil {
+				return nil, err
+			}
+			rt.OnError(func(ctx context.Context, err error) {
+				log.Printf("runtime error: %v", err)
+			})
+			bot.OnDirectCommands(rt, router)
+			bot.OnDirectText(rt, func(ctx context.Context, cli *client.Client, msg bot.DirectTextMessage) error {
+				if strings.HasPrefix(strings.TrimSpace(msg.Text), "/") {
+					return nil
+				}
+				if word, matched := list.Match(msg.Text); matched {
+					return msg.Reply(ctx, cli, "message blocked by moderation rule: "+word)
+				}
+				return nil
+			})
+			return rt, nil
+		},
+		bot.WithReconnectBackoff(1*time.Second, 20*time.Second),
+		bot.WithReconnectMaxConsecutiveFailures(0),
+		bot.WithReconnectErrorHandler(func(err error) {
+			log.Printf("reconnect: %v", err)
+		}),
+	)
+	if err != nil && !errors.Is(err, context.Canceled) {
+		log.Fatalf("bot stopped with error: %v", err)
+	}
+}
+`
+
+const readmeTemplateBasic = `# {{.Name}}
 
 Bot project scaffolded with ` + "`go-simplex`" + `.
 
@@ -333,6 +558,56 @@ Bot project scaffolded with ` + "`go-simplex`" + `.
 - ` + "`/help`" + `
 - ` + "`/ping`" + `
 - ` + "`/echo <text>`" + `
+
+## Security defaults
+
+- per-contact command rate limit
+- websocket read size limit
+- reconnect supervisor with backoff
+- forward-compatible response mode for upstream additions (` + "`WithStrictResponses(false)`" + `)
+
+## Official SimpleX docs
+
+- Bot overview: https://github.com/simplex-chat/simplex-chat/tree/stable/bots
+- Bot API commands: https://github.com/simplex-chat/simplex-chat/blob/stable/bots/api/COMMANDS.md
+- Bot API events: https://github.com/simplex-chat/simplex-chat/blob/stable/bots/api/EVENTS.md
+- Bot API types: https://github.com/simplex-chat/simplex-chat/blob/stable/bots/api/TYPES.md
+- Official TypeScript SDK: https://github.com/simplex-chat/simplex-chat/blob/stable/packages/simplex-chat-client/typescript/README.md
+`
+
+const readmeTemplateModeration = `# {{.Name}}
+
+Bot project scaffolded with ` + "`go-simplex`" + `, moderation template.
+
+## Run
+
+1. Start SimpleX CLI with websocket API:
+
+   ` + "```bash" + `
+   simplex-chat -p 5225
+   ` + "```" + `
+
+2. Install deps and run bot:
+
+   ` + "```bash" + `
+   go mod tidy
+   go run .
+   ` + "```" + `
+
+## Commands
+
+- ` + "`/help`" + `
+- ` + "`/addword <word>`" + `
+- ` + "`/delword <word>`" + `
+- ` + "`/words`" + `
+
+Default deny-list contains: ` + "`spam`" + ` and ` + "`scam`" + `.
+
+## Behavior
+
+- commands manage in-memory deny-list
+- non-command direct messages are checked against deny-list
+- if blocked word is found, bot replies with moderation warning
 
 ## Security defaults
 
