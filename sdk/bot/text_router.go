@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"time"
 	"unicode"
 
 	"github.com/Malomalsky/go-simplex/sdk/client"
@@ -46,8 +47,10 @@ type TextRouter struct {
 	caseInsensitive bool
 	maxTextBytes    int
 
-	commands map[string]textRoute
-	unknown  TextCommandHandler
+	commands    map[string]textRoute
+	unknown     TextCommandHandler
+	rateLimited TextCommandHandler
+	rateLimiter *ContactRateLimiter
 }
 
 func NewTextRouter(opts ...TextRouterOption) *TextRouter {
@@ -115,6 +118,19 @@ func (r *TextRouter) OnUnknown(h TextCommandHandler) {
 	r.unknown = h
 }
 
+func (r *TextRouter) OnRateLimited(h TextCommandHandler) {
+	r.rateLimited = h
+}
+
+func (r *TextRouter) EnablePerContactRateLimit(max int, window time.Duration) error {
+	limiter, err := NewContactRateLimiter(max, window)
+	if err != nil {
+		return err
+	}
+	r.rateLimiter = limiter
+	return nil
+}
+
 func (r *TextRouter) Commands() []string {
 	out := make([]string, 0, len(r.commands))
 	for name := range r.commands {
@@ -154,6 +170,12 @@ func (r *TextRouter) Handle(ctx context.Context, cli *client.Client, msg DirectT
 		Name:    name,
 		Args:    args,
 		Message: msg,
+	}
+	if r.rateLimiter != nil && !r.rateLimiter.Allow(msg.ContactID) {
+		if r.rateLimited != nil {
+			return r.rateLimited(ctx, cli, cmd)
+		}
+		return nil
 	}
 	if route, exists := r.commands[name]; exists {
 		return route.handler(ctx, cli, cmd)

@@ -18,6 +18,9 @@ func main() {
 	defer cancel()
 
 	router := bot.NewTextRouter()
+	if err := router.EnablePerContactRateLimit(20, time.Minute); err != nil {
+		log.Fatalf("enable rate limit: %v", err)
+	}
 	if err := router.On("ping", func(ctx context.Context, cli *client.Client, cmd bot.TextCommand) error {
 		return cmd.Message.Reply(ctx, cli, "pong")
 	}); err != nil {
@@ -51,6 +54,9 @@ func main() {
 	}
 	router.OnUnknown(func(ctx context.Context, cli *client.Client, cmd bot.TextCommand) error {
 		return cmd.Reply(ctx, cli, "unknown command. try /help")
+	})
+	router.OnRateLimited(func(ctx context.Context, cli *client.Client, cmd bot.TextCommand) error {
+		return cmd.Reply(ctx, cli, "rate limit exceeded, try again later")
 	})
 
 	err := bot.RunWebSocketWithReconnect(

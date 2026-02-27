@@ -50,6 +50,7 @@ Create client and bot runtime:
 ```go
 ctx := context.Background()
 router := bot.NewTextRouter()
+_ = router.EnablePerContactRateLimit(20, time.Minute)
 _ = router.On("ping", func(ctx context.Context, cli *client.Client, cmd bot.TextCommand) error {
     return cmd.Message.Reply(ctx, cli, "pong")
 })
@@ -59,6 +60,9 @@ _ = router.OnWithDescription("echo", "echo text back", func(ctx context.Context,
         return cmd.Reply(ctx, cli, "usage: /echo <text>")
     }
     return cmd.Reply(ctx, cli, strings.Join(argv, " "))
+})
+router.OnRateLimited(func(ctx context.Context, cli *client.Client, cmd bot.TextCommand) error {
+    return cmd.Reply(ctx, cli, "rate limit exceeded, try later")
 })
 
 err := bot.RunWebSocketWithReconnect(
@@ -89,6 +93,7 @@ Bot runtime helpers:
 - `bot.NewTextRouter`, `bot.OnDirectCommands`
 - `cmd.Argv()`, `cmd.Reply(...)`
 - `router.OnWithDescription(...)`, `router.HelpLines()`
+- `router.EnablePerContactRateLimit(...)`, `router.OnRateLimited(...)`
 - `bot.ExtractDirectTextMessages`
 - `bot.RunWithReconnect`, `bot.RunWebSocketWithReconnect`
 - `rt.Use` middleware chain

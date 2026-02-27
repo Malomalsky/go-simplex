@@ -230,6 +230,50 @@ func TestTextRouterMaxTextBytes(t *testing.T) {
 	}
 }
 
+func TestTextRouterEnablePerContactRateLimit(t *testing.T) {
+	t.Parallel()
+
+	router := NewTextRouter()
+	if err := router.EnablePerContactRateLimit(2, time.Minute); err != nil {
+		t.Fatalf("enable rate limit: %v", err)
+	}
+
+	hits := 0
+	if err := router.On("ping", func(ctx context.Context, cli *client.Client, cmd TextCommand) error {
+		hits++
+		return nil
+	}); err != nil {
+		t.Fatalf("register command: %v", err)
+	}
+
+	limited := 0
+	router.OnRateLimited(func(ctx context.Context, cli *client.Client, cmd TextCommand) error {
+		limited++
+		return nil
+	})
+
+	msg := DirectTextMessage{ContactID: 7, Text: "/ping"}
+	_ = router.Handle(context.Background(), nil, msg)
+	_ = router.Handle(context.Background(), nil, msg)
+	_ = router.Handle(context.Background(), nil, msg)
+
+	if hits != 2 {
+		t.Fatalf("unexpected handled count: %d", hits)
+	}
+	if limited != 1 {
+		t.Fatalf("unexpected limited count: %d", limited)
+	}
+}
+
+func TestTextRouterEnablePerContactRateLimitValidation(t *testing.T) {
+	t.Parallel()
+
+	router := NewTextRouter()
+	if err := router.EnablePerContactRateLimit(0, time.Minute); err == nil {
+		t.Fatalf("expected invalid rate-limit config error")
+	}
+}
+
 func TestTextRouterOnValidation(t *testing.T) {
 	t.Parallel()
 
