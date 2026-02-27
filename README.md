@@ -119,6 +119,7 @@ More details: `docs/security.md`.
 - Bot development guide: `docs/bot-development.md`
 - Compatibility and coverage: `docs/compatibility.md`
 - Security guide: `docs/security.md`
+- Production deployment guide: `docs/production.md`
 - Vulnerability reporting: `SECURITY.md`
 - Contribution guide: `CONTRIBUTING.md`
 - Upstream API research notes: `docs/research/upstream-api.md`
@@ -179,8 +180,35 @@ Local harness (auto-start `simplex-chat`, run integration tests, cleanup):
 ./scripts/integration-local.sh
 ```
 
+Harness options:
+
+- `--no-start` to run against existing endpoint
+- `--port <port>` to override local websocket port
+- `--timeout <sec>` to adjust readiness wait
+- `--verbose` for extra diagnostics
+
+Pass extra `go test` args after `--`, for example:
+
+```bash
+./scripts/integration-local.sh --no-start -- -run TestLiveContracts
+```
+
 Optional vulnerability scan:
 
 ```bash
 go run golang.org/x/vuln/cmd/govulncheck@latest ./...
+```
+
+## Release process
+
+Release from merged PR state:
+
+1. add a version section to `CHANGELOG.md` (`## [vX.Y.Z] - YYYY-MM-DD`)
+2. merge to `main`
+3. run GitHub Actions workflow `Release` with input `version=vX.Y.Z`
+
+Release notes are extracted from changelog via:
+
+```bash
+./scripts/release-notes.sh vX.Y.Z
 ```

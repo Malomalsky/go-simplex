@@ -2,6 +2,35 @@
 
 All notable changes to this project are documented in this file.
 
+## [Unreleased]
+
+### Added
+
+- release workflow (`.github/workflows/release.yml`) for tag+GitHub Release from merged PR state
+- changelog note extractor script: `scripts/release-notes.sh`
+- production deployment and data safety guide: `docs/production.md`
+
+### Changed
+
+- `scripts/integration-local.sh` now supports:
+  - `--no-start`
+  - `--port <port>`
+  - `--timeout <seconds>`
+  - `--verbose`
+  - explicit `--` passthrough for extra `go test` args
+- docs expanded for harness options and release process (`README.md`, `CONTRIBUTING.md`, `integration/README.md`)
+
+## [v0.2.1] - 2026-02-27
+
+### Added
+
+- local integration harness script:
+  - starts `simplex-chat`
+  - waits for websocket readiness
+  - runs integration tests
+  - cleans up process on exit
+- documentation updates for local harness usage in README and integration docs
+
 ## [v0.2.0] - 2026-02-27
 
 ### Added
@@ -43,5 +72,7 @@ All notable changes to this project are documented in this file.
   - rate limiting and safety validations
   - scaffold command with `basic` and `moderation` templates
 
-[ v0.2.0 ]: https://github.com/Malomalsky/go-simplex/compare/v0.1.0...v0.2.0
-[ v0.1.0 ]: https://github.com/Malomalsky/go-simplex/releases/tag/v0.1.0
+[v0.2.1]: https://github.com/Malomalsky/go-simplex/compare/v0.2.0...v0.2.1
+[v0.2.0]: https://github.com/Malomalsky/go-simplex/compare/v0.1.0...v0.2.0
+[v0.1.0]: https://github.com/Malomalsky/go-simplex/releases/tag/v0.1.0
+[Unreleased]: https://github.com/Malomalsky/go-simplex/compare/v0.2.1...HEAD

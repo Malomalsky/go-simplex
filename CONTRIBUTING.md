@@ -60,7 +60,23 @@ For local reproducible runs, use:
 ./scripts/integration-local.sh
 ```
 
+Example with custom options:
+
+```bash
+./scripts/integration-local.sh --no-start --port 5225 --timeout 90 -- -run TestLiveContracts
+```
+
 Additional fixture variables are documented in `integration/README.md`.
+
+## Release process
+
+Releases are done from merged PR state:
+
+1. Add/update changelog section in `CHANGELOG.md` (`## [vX.Y.Z] - YYYY-MM-DD`).
+2. Merge PR to `main`.
+3. Run GitHub Actions workflow `Release` with input `version=vX.Y.Z`.
+
+The workflow validates the tag, extracts notes from `CHANGELOG.md`, creates/pushes the tag, and publishes GitHub Release.
 
 ## Pull requests
 

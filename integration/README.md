@@ -28,6 +28,19 @@ Use existing websocket instead of starting local process:
 SIMPLEX_WS_URL=ws://localhost:5225 ./scripts/integration-local.sh
 ```
 
+Or with explicit flags:
+
+```bash
+./scripts/integration-local.sh --no-start --port 5225 --timeout 90 -- -run TestLiveContracts
+```
+
+Useful harness options:
+
+- `--no-start` - do not launch `simplex-chat`; run against existing endpoint
+- `--port <port>` - local websocket port for auto-start and default endpoint
+- `--timeout <seconds>` - readiness wait budget when auto-starting
+- `--verbose` - extra diagnostics for readiness/wait steps
+
 ## Optional fixture env vars for extended flows
 
 Set these to enable additional contract tests:
